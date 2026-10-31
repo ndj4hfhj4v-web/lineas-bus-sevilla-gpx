@@ -2,9 +2,13 @@
 
 Web independiente para consultar recorridos de autobús de Sevilla, ver sus paradas, seguir la posición del móvil sobre el mapa y descargar el sentido elegido como GPX.
 
-## Privacidad del repositorio
+## Web de prueba
 
-Este proyecto se ha preparado para guardarlo en un repositorio **privado**, por petición del propietario. No se ha activado GitHub Pages ni cambiado la web de Netlify. La sección sobre Pages solo sirve como referencia si más adelante se decide publicar allí.
+El proyecto es público por decisión del propietario y la web se publica desde `docs/` mediante GitHub Pages:
+
+https://ndj4hfhj4v-web.github.io/lineas-bus-sevilla-gpx/
+
+La web de Netlify es una publicación independiente.
 
 ## Funciones
 
