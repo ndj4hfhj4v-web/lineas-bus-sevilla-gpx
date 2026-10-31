@@ -1,0 +1,14 @@
+{
+  "name": "lineas-bus-sevilla-gpx",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Recorridos de bus de Sevilla con seguimiento GPS y exportación GPX.",
+  "scripts": {
+    "build": "node scripts/build.cjs",
+    "test": "node tests/gps.cjs && node tests/feedback.cjs && node scripts/validate.cjs",
+    "start": "node scripts/serve.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
