@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "Lineas de Bus de Sevilla GPX",
+  "short_name": "Bus Sevilla GPX",
+  "description": "Consulta líneas de bus, sigue el recorrido con GPS y descarga archivos GPX.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#cbd9d0",
+  "theme_color": "#244b3b",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
