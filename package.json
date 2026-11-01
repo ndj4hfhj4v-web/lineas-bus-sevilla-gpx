@@ -5,7 +5,7 @@
   "description": "Recorridos de bus de Sevilla con seguimiento GPS y exportación GPX.",
   "scripts": {
     "build": "node scripts/build.cjs",
-    "test": "node tests/gps.cjs && node tests/feedback.cjs && node tests/offline.cjs && node scripts/validate.cjs",
+    "test": "node tests/gps.cjs && node tests/feedback.cjs && node tests/offline.cjs && node scripts/validate.cjs && node tests/viewport.cjs",
     "start": "node scripts/serve.cjs"
   },
   "engines": {
