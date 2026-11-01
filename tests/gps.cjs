@@ -51,5 +51,6 @@ try{
  elements.startGps.onclick();route={...route};nav.routeChanged();assert.equal(nav.isActive(),false);assert.equal(cleared.length,2);elements.expandMap.onclick();
  elements.startGps.onclick();error({code:1});assert.equal(nav.isActive(),false);assert.match(elements.gpsStatus.textContent,/denegado/);assert.equal(elements.centerGps.hidden,true);elements.expandMap.onclick();
  window.isSecureContext=false;elements.startGps.onclick();assert.match(elements.gpsStatus.textContent,/HTTPS/);assert.equal(watchCalls,3);
+ const oldStart=elements.startGps;delete elements.startGps;window.isSecureContext=true;nav.start();assert.equal(nav.isActive(),true,'Navigation can start directly without an intermediate GPS button');nav.exit();elements.startGps=oldStart;
  console.log('Correcto: rumbo, recuperación GPS, icono de ubicación tras mover el mapa, suavizado, vuelta al inicio, permisos y limpieza de recursos.');
 }finally{global.setTimeout=originals.setTimeout;global.clearTimeout=originals.clearTimeout;global.setInterval=originals.setInterval;global.clearInterval=originals.clearInterval;Date.now=originals.now;}
