@@ -64,9 +64,18 @@ $('forgetOffline').onclick=async()=>{try{await BusOffline.removeLine(selected);s
 $('clearMaps').onclick=async()=>{try{await BusOffline.clearMaps();await updateOfflineStatus('Mapas eliminados; tus líneas y paradas siguen guardadas.');}catch{await updateOfflineStatus('No se ha podido vaciar la caché de mapas.');}};
 window.addEventListener('online',()=>updateOfflineStatus());window.addEventListener('offline',()=>updateOfflineStatus());window.addEventListener('bus-offline-change',()=>updateOfflineStatus());
 
-function closeMenus(restoreFocus=false){const activePanel=!$('linePanel').hidden?'lines':!$('optionsPanel').hidden?'options':null;$('linePanel').hidden=true;$('optionsPanel').hidden=true;$('selectLine').setAttribute('aria-expanded','false');$('optionsToggle').setAttribute('aria-expanded','false');$('gpsDetail').dataset.menuOpen='false';routeNavigator.revealControls();if(restoreFocus&&activePanel)$(activePanel==='lines'?'selectLine':'optionsToggle').focus();}
+function closeMenus(restoreFocus=false){const activePanel=!$('linePanel').hidden?'lines':!$('optionsPanel').hidden?'options':null;$('linePanel').hidden=true;$('optionsPanel').hidden=true;$('selectLine').setAttribute('aria-expanded','false');$('optionsToggle').setAttribute('aria-expanded','false');$('gpsDetail').dataset.menuOpen='false';routeNavigator.revealControls();if(restoreFocus&&activePanel)$(activePanel==='lines'?'selectLine':'optionsToggle').focus({preventScroll:true});}
 function openMenu(which){const panel=$(which==='lines'?'linePanel':'optionsPanel'),wasOpen=!panel.hidden;closeMenus();if(wasOpen)return;panel.hidden=false;$(which==='lines'?'selectLine':'optionsToggle').setAttribute('aria-expanded','true');$('gpsDetail').dataset.menuOpen='true';routeNavigator.revealControls();if(which==='lines')$('search').focus();else $('closeOptions').focus();}
 $('selectLine').onclick=()=>openMenu('lines');$('optionsToggle').onclick=()=>openMenu('options');$('closeLines').onclick=()=>closeMenus(true);$('closeOptions').onclick=()=>closeMenus(true);
 document.addEventListener('pointerdown',event=>{if(event.target.closest('#map'))closeMenus();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&(!$('linePanel').hidden||!$('optionsPanel').hidden)){event.preventDefault();closeMenus(true);}});
 $('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&button.id!=='closeOptions'&&button.id!=='savedOnly')closeMenus(true);});
+
+function initMapViewport(map){
+ const viewport=window.visualViewport,style=document.documentElement.style;let frame=null,lastWidth=0,lastHeight=0;
+ function update(){frame=null;const width=viewport?.width||window.innerWidth,height=viewport?.height||window.innerHeight;style.setProperty('--app-width',width+'px');style.setProperty('--app-height',height+'px');style.setProperty('--app-top',(viewport?.offsetTop||0)+'px');style.setProperty('--app-left',(viewport?.offsetLeft||0)+'px');if(width!==lastWidth||height!==lastHeight){lastWidth=width;lastHeight=height;map?.invalidateSize({pan:false,animate:false});}}
+ function schedule(){if(frame===null)frame=requestAnimationFrame(update);}
+ window.addEventListener('resize',schedule,{passive:true});window.addEventListener('orientationchange',schedule,{passive:true});window.addEventListener('pageshow',schedule,{passive:true});viewport?.addEventListener('resize',schedule,{passive:true});viewport?.addEventListener('scroll',schedule,{passive:true});update();
+ return ()=>{if(frame!==null)cancelAnimationFrame(frame);window.removeEventListener('resize',schedule);window.removeEventListener('orientationchange',schedule);window.removeEventListener('pageshow',schedule);viewport?.removeEventListener('resize',schedule);viewport?.removeEventListener('scroll',schedule);};
+}
+initMapViewport(map);

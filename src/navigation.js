@@ -33,12 +33,12 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  function expand(){
   if(!map||!getRoute())return;
   const detail=el('gpsDetail');
-  if(!expanded){returnFocus=document.activeElement;expanded=true;detail.dataset.expanded='true';document.documentElement.classList.add('map-expanded');el('expandMap').hidden=false;el('expandMap').setAttribute('aria-expanded','true');el('expandMap').focus();}
+  if(!expanded){returnFocus=document.activeElement;expanded=true;detail.dataset.expanded='true';document.documentElement.classList.add('map-expanded');el('expandMap').hidden=false;el('expandMap').setAttribute('aria-expanded','true');el('expandMap').focus({preventScroll:true});}
   revealOptions();map.invalidateSize();
  }
  function collapse(){
   if(!expanded)return;expanded=false;clearChromeTimer();el('gpsDetail').dataset.optionsHidden='false';el('gpsDetail').dataset.expanded='false';document.documentElement.classList.remove('map-expanded');if(active)stop('');el('expandMap').hidden=true;el('expandMap').setAttribute('aria-expanded','false');
-  map.invalidateSize();if(returnFocus&&returnFocus.focus)returnFocus.focus();window.scrollTo?.({top:0,left:0,behavior:'auto'});
+  map.invalidateSize();if(returnFocus&&returnFocus.focus)returnFocus.focus({preventScroll:true});window.scrollTo?.({top:0,left:0,behavior:'auto'});
  }
  el('expandMap').onclick=collapse;
  if(typeof L!=='undefined'&&L.DomEvent){L.DomEvent.disableClickPropagation(el('centerGps'));L.DomEvent.disableScrollPropagation(el('centerGps'));}
