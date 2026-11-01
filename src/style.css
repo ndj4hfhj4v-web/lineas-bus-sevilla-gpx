@@ -64,3 +64,8 @@ html.map-expanded,html.map-expanded body{overflow:hidden;overscroll-behavior:non
 .offline-tools{padding:12px 0 18px}.offline-actions{display:flex;gap:8px;flex-wrap:wrap}.offline-actions button,#clearMaps{min-height:44px;font-size:13px}.offline-tools p{font-size:12px;line-height:1.6;color:#3c5145;margin:9px 0 0}.offline-actions button[hidden]{display:none}.offline-actions button[aria-pressed="true"]{background:#244b3b;color:#fff}.gps-actions button{touch-action:manipulation}#gpsDetail[data-expanded="true"]>.gps-actions{flex-wrap:wrap}#gpsDetail[data-expanded="true"] .leaflet-top{top:calc(max(8px,env(safe-area-inset-top)) + 162px)}@media(max-width:700px){.offline-actions button{flex:1 1 140px}}
 
 #gpsStatus:empty{display:none}
+
+/* Expanded map exposes only the return action; navigation controls remain on the main screen. */
+#gpsDetail[data-expanded="true"] .gps-actions button:not(#expandMap),#gpsDetail[data-expanded="true"] .leaflet-control-zoom{display:none}
+#gpsDetail[data-expanded="true"]>.gps-actions{right:auto;max-width:calc(100% - 24px)}
+#gpsDetail[data-expanded="true"] .gps-actions #expandMap{flex:none;font-size:14px;padding:10px 16px;min-height:44px}
