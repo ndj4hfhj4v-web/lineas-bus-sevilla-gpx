@@ -10,6 +10,18 @@ https://ndj4hfhj4v-web.github.io/lineas-bus-sevilla-gpx/
 
 La web de Netlify es una publicación independiente.
 
+## Uso sin conexión en iPhone
+
+1. Abre la web HTTPS en Safari y elige Compartir → Añadir a pantalla de inicio.
+2. Abre el icono instalado mientras tienes Internet. Safari y la app instalada pueden usar almacenes separados: prepara las copias desde el icono que usarás después.
+3. Selecciona la línea y pulsa **Guardar línea sin conexión**. Se guardan todos sus sentidos, paradas, trazado completo y GPX en IndexedDB. Espera a que el estado indique que la aplicación está disponible sin Internet.
+4. Visita las zonas del mapa al nivel de zoom que necesitarás. Guardar la línea no descarga automáticamente su mapa entero. Solo se conservan las teselas consultadas del área de Sevilla.
+5. Activa el modo avión, vuelve a abrir desde el mismo icono, pulsa **Ver guardadas** y comprueba el sentido y las paradas antes de salir. Activa la localización del dispositivo para iniciar GPS.
+
+El Service Worker guarda la interfaz y las librerías incluidas. La caché de mapas, separada de las líneas, conserva como máximo 384 teselas de hasta 512 KiB cada una (límite teórico de imágenes: 192 MiB, sin contar la sobrecarga del navegador). Reutiliza imágenes CORS legibles del IGN; no guarda respuestas opacas, imágenes con instrucciones no-store/private ni mapas de otros proveedores. No hace descargas masivas ni precarga toda Sevilla. Al llenarse reemplaza las copias más antiguas; iOS también puede eliminar datos por falta de espacio. Se solicita almacenamiento persistente, sin prometer que el sistema lo conceda. Las zonas ausentes muestran **Mapa no guardado**, con el trazado y las paradas encima.
+
+El botón **Borrar mapas guardados** conserva tus líneas. **Eliminar copia de esta línea** elimina solo la línea elegida. Las consultas en directo se guardan como última copia local. Actualizar datos durante una navegación no sustituye el recorrido que estás siguiendo.
+
 ## Funciones
 
 - Búsqueda de líneas y selección del sentido de marcha.
@@ -19,7 +31,7 @@ La web de Netlify es una publicación independiente.
 - Actualización de trazados y paradas desde IDE Sevilla; copia integrada si la consulta falla.
 - Instalación desde navegadores compatibles mediante un manifiesto web.
 
-El GPS necesita HTTPS, permiso de ubicación y la pantalla abierta. No ofrece voz, instrucciones giro a giro ni recálculo de rutas. El giro utiliza el rumbo GPS o el desplazamiento entre posiciones; parado o con mala precisión mantiene la orientación anterior. Las pruebas de seguimiento y giro se han realizado con posiciones simuladas; queda pendiente la prueba en la calle. No se conserva un historial de posiciones.
+El GPS necesita HTTPS, permiso de ubicación y la pantalla abierta; una ruta preparada no necesita Internet para iniciarse. El centrado se suaviza entre posiciones fiables y se puede pausar o reactivar. La brújula es opcional, solicita permiso en iPhone y solo ayuda al inicio en movimiento: el rumbo del GPS tiene prioridad. Se intenta impedir el apagado mediante Screen Wake Lock cuando el navegador y la versión de iOS lo permiten. No ofrece voz, instrucciones giro a giro ni recálculo de rutas. El giro utiliza el rumbo GPS o el desplazamiento entre posiciones; parado o con mala precisión mantiene la orientación anterior. Las pruebas automatizadas cubren señal antigua, pérdida temporal, recuperación, giro y pausa del seguimiento con posiciones simuladas. Se ha comprobado el arranque con el servidor local apagado y la recuperación de líneas guardadas. Queda pendiente la prueba real en iPhone y modo avión, especialmente GPS, brújula y Wake Lock. No se conserva un historial de posiciones.
 
 ## Estructura
 
@@ -64,3 +76,9 @@ Aplicación independiente y no oficial, sin afiliación ni patrocinio de operado
 La página conserva el fragmento de Cloudflare Web Analytics configurado por el propietario. Al cambiar el dominio hay que revisar la configuración de ese sitio en Cloudflare. No hay un registro específico de descargas.
 
 Leaflet 1.9.4 y el complemento de rotación 0.3.0 se incluyen localmente: no hace falta descargarlos de un CDN al abrir la web. Consulta `THIRD_PARTY_NOTICES.txt` para sus licencias. La publicación de este repositorio no concede por sí sola una licencia sobre el resto del proyecto ni sobre los datos o la cartografía de terceros.
+
+## Mapas y almacenamiento
+
+La licencia del IGN es compatible con CC BY 4.0 y la atribución sigue visible también sin conexión. La caché usa solo teselas vistas, en zooms 11–18 y dentro del área de Sevilla; no presupone autorización para descargas ilimitadas del servicio. Para paquetes completos offline se puede preparar una publicación propia con cartografía licenciada y servirla desde almacenamiento propio, después de comprobar el tamaño y las condiciones de los datos.
+
+Referencias: [licencia del IGN](https://www.ign.es/resources/licencia/Condiciones_licenciaUso_IGN.pdf), [política de almacenamiento de WebKit](https://webkit.org/blog/14403/updates-to-storage-policy/).
