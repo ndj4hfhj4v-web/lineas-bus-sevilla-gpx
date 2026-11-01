@@ -76,3 +76,7 @@ html.map-expanded,html.map-expanded body{overflow:hidden;overscroll-behavior:non
 #map .map-location svg{width:24px;height:24px;display:block}
 #map .map-location[aria-pressed="false"]{color:#6b7b72}
 #map .map-location[hidden]{display:none}
+
+#map .map-location{width:52px;height:52px;padding:0;border:2px solid #fff;border-radius:14px;background:#244b3b;overflow:hidden}
+#map .map-location img{display:block;width:100%;height:100%;object-fit:contain}
+.gps-arrow{background:transparent;border:0}.gps-arrow-shape{display:block;width:36px;height:36px;transform-origin:50% 50%;filter:drop-shadow(0 1px 2px #0006)}
