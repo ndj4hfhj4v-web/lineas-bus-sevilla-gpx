@@ -25,13 +25,13 @@ El botón **Borrar mapas guardados** conserva tus líneas. **Eliminar copia de e
 ## Funciones
 
 - Búsqueda de líneas y selección del sentido de marcha.
-- Mapa ampliable con seguimiento de posición y giro según la dirección del desplazamiento.
-- Controles que aparecen al tocar el mapa y se ocultan tras cinco segundos sin interactuar durante el seguimiento.
+- Mapa a pantalla completa al abrir el recorrido con GPS, con giro según la dirección del desplazamiento.
+- Solo un botón de regreso al tocar el mapa, que se oculta tras cinco segundos, y un icono de ubicación para recuperar el seguimiento.
 - Exportación de un GPX del recorrido seleccionado, con trazado y paradas.
 - Actualización de trazados y paradas desde IDE Sevilla; copia integrada si la consulta falla.
 - Instalación desde navegadores compatibles mediante un manifiesto web.
 
-El GPS necesita HTTPS, permiso de ubicación y la pantalla abierta; una ruta preparada no necesita Internet para iniciarse. El centrado se suaviza entre posiciones fiables y se puede pausar o reactivar. La brújula es opcional, solicita permiso en iPhone y solo ayuda al inicio en movimiento: el rumbo del GPS tiene prioridad. Se intenta impedir el apagado mediante Screen Wake Lock cuando el navegador y la versión de iOS lo permiten. No ofrece voz, instrucciones giro a giro ni recálculo de rutas. El giro utiliza el rumbo GPS o el desplazamiento entre posiciones; parado o con mala precisión mantiene la orientación anterior. Las pruebas automatizadas cubren señal antigua, pérdida temporal, recuperación, giro y pausa del seguimiento con posiciones simuladas. Se ha comprobado el arranque con el servidor local apagado y la recuperación de líneas guardadas. Queda pendiente la prueba real en iPhone y modo avión, especialmente GPS, brújula y Wake Lock. No se conserva un historial de posiciones.
+El GPS necesita HTTPS, permiso de ubicación y la pantalla abierta; una ruta preparada no necesita Internet para iniciarse. El centrado se suaviza entre posiciones fiables. Arrastrar el mapa pausa el seguimiento; tocar el icono de ubicación lo centra de nuevo y reactiva el seguimiento. Volver al inicio cierra la navegación y libera el GPS. Se intenta impedir el apagado mediante Screen Wake Lock cuando el navegador y la versión de iOS lo permiten. No ofrece voz, instrucciones giro a giro ni recálculo de rutas. El giro utiliza el rumbo GPS o el desplazamiento entre posiciones; parado o con mala precisión mantiene la orientación anterior. Las pruebas automatizadas cubren señal antigua, pérdida temporal, recuperación, giro y pausa del seguimiento con posiciones simuladas. Se ha comprobado el arranque con el servidor local apagado y la recuperación de líneas guardadas. Queda pendiente la prueba real en iPhone y modo avión, especialmente GPS y Wake Lock. No se conserva un historial de posiciones.
 
 ## Estructura
 

@@ -17,7 +17,7 @@
 
 Apagar el servidor demuestra el arranque sin servidor de origen; no equivale por sí solo a desactivar todas las conexiones del dispositivo. El rechazo total de la red se comprueba adicionalmente en las pruebas automatizadas. Las posiciones GPS son simuladas.
 
-No se dispone de un iPhone físico. Quedan pendientes el modo avión real, recepción GPS en la calle, permiso de brújula y Wake Lock de la versión concreta de iOS. No se promete seguimiento en segundo plano o con el teléfono bloqueado.
+No se dispone de un iPhone físico. Quedan pendientes el modo avión real, recepción GPS en la calle, Wake Lock de la versión concreta de iOS. No se promete seguimiento en segundo plano o con el teléfono bloqueado.
 
 ## Prueba en el iPhone
 
@@ -27,6 +27,6 @@ No se dispone de un iPhone físico. Quedan pendientes el modo avión real, recep
 4. Cerrar la app, activar modo avión y volver a entrar desde el mismo icono.
 5. Abrir «Ver guardadas»; comprobar sentidos, paradas y descarga GPX.
 6. Iniciar GPS con la localización activada; comprobar centrado y giro al desplazarse.
-7. Pausar y reactivar el seguimiento y comprobar la recuperación tras perder señal.
+7. Mover el mapa y tocar el icono de ubicación para volver a la posición actual. Comprobar la recuperación tras perder señal.
 
 Guardar una línea no descarga su mapa completo. Las zonas no visitadas o eliminadas muestran «Mapa no guardado»; el trazado y las paradas siguen disponibles. Safari puede eliminar datos por falta de espacio, incluso aunque la app solicite persistencia.
