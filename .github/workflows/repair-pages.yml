@@ -1,0 +1,20 @@
+name: Recuperar publicacion Pages
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/repair-pages.yml
+permissions:
+  contents: read
+  pages: write
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Cancelar despliegue atascado
+        run: gh api --method POST repos/ndj4hfhj4v-web/lineas-bus-sevilla-gpx/pages/deployments/e81328f882b56e027a33769b3753a302da6eb159/cancel
+      - name: Publicar la version actual
+        run: gh api --method POST repos/ndj4hfhj4v-web/lineas-bus-sevilla-gpx/pages/builds
