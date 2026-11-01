@@ -64,7 +64,7 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
   if(!marker){marker=L.circleMarker(ll,{radius:8,color:'#ffffff',weight:3,fillColor:'#147bd1',fillOpacity:1}).bindTooltip('Tu posición GPS').addTo(map);accuracyCircle=L.circle(ll,{radius:last.accuracy,color:'#147bd1',weight:1,fillColor:'#147bd1',fillOpacity:.08,interactive:false}).addTo(map);}else{marker.setLatLng(ll);marker.setStyle({opacity:1,fillOpacity:1});accuracyCircle.setLatLng(ll);accuracyCircle.setRadius(last.accuracy);}
   followPosition();
   const offset=gpsRouteDistance([last.lon,last.lat],route.geometry.paths),poor=last.accuracy>80;
-  status(poor?'Señal GPS poco precisa. Espera una mejor señal.':'GPS activo · Sigue la línea dibujada en el mapa.',poor?'warning':'normal');
+  status(poor?'Señal GPS poco precisa. Espera una mejor señal.':'',poor?'warning':'normal');
   el('gpsMetrics').textContent='Precisión aproximada: ±'+meters(last.accuracy)+' · Distancia al trazado: '+meters(offset);
   const nearest=gpsNearestStop([last.lon,last.lat],route.stops||[]);el('gpsStop').textContent=nearest?'Parada más cercana: '+(nearest.index+1)+'. '+nearest.stop.attributes.Nombre+' · '+meters(nearest.distance)+' en línea recta':'';controls();
  }
