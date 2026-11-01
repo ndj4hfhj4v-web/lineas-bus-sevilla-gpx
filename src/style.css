@@ -71,3 +71,8 @@ html.map-expanded,html.map-expanded body{overflow:hidden;overscroll-behavior:non
 #gpsDetail[data-expanded="true"] .gps-actions #expandMap{flex:none;font-size:14px;padding:10px 16px;min-height:44px}
 
 #gpsDetail[data-expanded="true"]>.gps-panel{display:none}
+
+#map .map-location{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:calc(env(safe-area-inset-bottom,0px) + 26px);z-index:1000;width:48px;height:48px;min-height:48px;padding:11px;display:grid;place-items:center;border:1px solid #adc0b3;border-radius:50%;background:#fff;color:#244b3b;box-shadow:0 2px 10px #0003;touch-action:manipulation}
+#map .map-location svg{width:24px;height:24px;display:block}
+#map .map-location[aria-pressed="false"]{color:#6b7b72}
+#map .map-location[hidden]{display:none}
