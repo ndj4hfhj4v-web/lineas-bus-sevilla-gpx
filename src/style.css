@@ -69,3 +69,5 @@ html.map-expanded,html.map-expanded body{overflow:hidden;overscroll-behavior:non
 #gpsDetail[data-expanded="true"] .gps-actions button:not(#expandMap),#gpsDetail[data-expanded="true"] .leaflet-control-zoom{display:none}
 #gpsDetail[data-expanded="true"]>.gps-actions{right:auto;max-width:calc(100% - 24px)}
 #gpsDetail[data-expanded="true"] .gps-actions #expandMap{flex:none;font-size:14px;padding:10px 16px;min-height:44px}
+
+#gpsDetail[data-expanded="true"]>.gps-panel{display:none}
