@@ -45,7 +45,7 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&expanded&&el('gpsDetail').dataset.menuOpen!=='true'){event.preventDefault();collapse();}});
  const meters=n=>n>=1000?(n/1000).toLocaleString('es',{maximumFractionDigits:1})+' km':Math.round(n)+' m';
  function status(text,state='normal'){el('gpsStatus').textContent=text;el('gpsPanel').dataset.state=state;el('gpsPanel').hidden=false;}
- function controls(){el('startGps').hidden=active;el('expandMap').hidden=!expanded;el('centerGps').hidden=!active||!expanded||following||!last;el('centerGps').disabled=!last;el('centerGps').setAttribute('aria-pressed',String(following));el('gpsDetail').dataset.navigating=String(active);onStateChange(active);if(map)map.invalidateSize();}
+ function controls(){if(el('startGps'))el('startGps').hidden=active;el('expandMap').hidden=!expanded;el('centerGps').hidden=!active||!expanded||following||!last;el('centerGps').disabled=!last;el('centerGps').setAttribute('aria-pressed',String(following));el('gpsDetail').dataset.navigating=String(active);onStateChange(active);if(map)map.invalidateSize();}
  async function keepAwake(){if(!active||document.visibilityState!=='visible'||!navigator.wakeLock||wake)return;const token=generation;try{const lock=await navigator.wakeLock.request('screen');if(!active||token!==generation){await lock.release();return;}wake=lock;lock.addEventListener('release',()=>{if(wake===lock)wake=null;});}catch{/* Screen wake lock is optional; GPS remains usable. */}}
  function releaseWake(){const old=wake;wake=null;if(old)old.release().catch(()=>{});}
  function stop(message='GPS detenido.'){active=false;revealOptions();generation++;if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}if(timer!==null){clearInterval(timer);timer=null;}releaseWake();last=null;travelHeading=courseAnchor=viewPosition=null;if(map){if(map.stopHeadingUp)map.stopHeadingUp();if(map.setBearing)map.setBearing(0);if(marker)map.removeLayer(marker);if(accuracyCircle)map.removeLayer(accuracyCircle);}marker=accuracyCircle=null;el('gpsMetrics').textContent='';el('gpsStop').textContent='';controls();status(message);if(!message)el('gpsPanel').hidden=true;}
@@ -74,11 +74,11 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
    timer=setInterval(()=>{if(!active)return;if(last&&Date.now()-last.time>30000){status('Sin una posición reciente. La última ubicación puede estar desactualizada.','warning');if(marker)marker.setOpacity(.4);}if((!last||Date.now()-last.time>30000)&&Date.now()-approximateAttempt>20000)requestApproximate(token);},5000);keepAwake();
   }catch{stop('No se ha podido iniciar el GPS. Abre la web en el navegador del móvil y revisa el permiso de ubicación.');el('gpsPanel').dataset.state='warning';}
  }
- el('startGps').onclick=start;el('centerGps').onclick=()=>{following=true;viewPosition=null;followPosition();controls();};
+ if(el('startGps'))el('startGps').onclick=start;el('centerGps').onclick=()=>{following=true;viewPosition=null;followPosition();controls();};
  if(map)map.on('rotate',orientArrow);
  if(map)map.on('dragstart',()=>{if(active){following=false;if(map.stopHeadingUp)map.stopHeadingUp();controls();}});
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(active){if(!last||Date.now()-last.time>30000){status('Retomando el GPS. Esperando una posición reciente…','warning');requestApproximate(generation);}keepAwake();}}else{releaseWake();}});
  window.addEventListener('pagehide',()=>{if(active)stop();});
- return {isActive:()=>active,exit:collapse,revealControls:revealOptions,routeChanged(){const route=getRoute();if(active&&route!==routeKey)stop('Has cambiado de recorrido. Pulsa «Abrir recorrido con GPS» para seguir el nuevo sentido.');el('startGps').disabled=!route;el('expandMap').disabled=!route;},stop};
+ return {start,isActive:()=>active,exit:collapse,revealControls:revealOptions,routeChanged(){const route=getRoute();if(active&&route!==routeKey)stop('Has cambiado de recorrido.');if(el('startGps'))el('startGps').disabled=!route;el('expandMap').disabled=!route;},stop};
 }
 if(typeof module!=='undefined')module.exports={gpsDistance,gpsRouteDistance,gpsNearestStop,gpsBearing,gpsMotionCourse,createRouteNavigator};
