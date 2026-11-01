@@ -40,13 +40,13 @@ async function load(refresh=false){
  }
  if(state==='cached'&&savedLines.size){const ids=new Set(savedLines.keys());data={...data,features:[...data.features.filter(f=>!ids.has(label(f))),...[...savedLines.values()].flatMap(line=>line.items)]};}
  if(routeNavigator.isActive()){$('dataStatus').dataset.state=state;$('status').textContent='Datos disponibles para la próxima selección. Tu navegación continúa con el recorrido actual.';$('refresh').disabled=false;return;}
- features=validFeatures(data);const index=new Map;for(const f of features){const id=label(f);if(!index.has(id))index.set(id,{id,name:f.attributes.NombreLinea||id,items:[]});index.get(id).items.push(f);}groups=[...index.values()].sort((a,b)=>a.id.localeCompare(b.id,'es',{numeric:true}));$('dataStatus').dataset.state=state;$('status').textContent=groups.length+' líneas · '+features.length+' recorridos · '+message;$('all').disabled=false;choose(index.has(selected)?selected:groups[0].id);$('refresh').disabled=false;}
+ features=validFeatures(data);const index=new Map;for(const f of features){const id=label(f);if(!index.has(id))index.set(id,{id,name:f.attributes.NombreLinea||id,items:[]});index.get(id).items.push(f);}groups=[...index.values()].sort((a,b)=>a.id.localeCompare(b.id,'es',{numeric:true}));$('dataStatus').dataset.state=state;$('status').textContent=groups.length+' líneas · '+features.length+' recorridos · '+message;choose(index.has(selected)?selected:groups[0].id);$('refresh').disabled=false;}
 const routeNavigator=createRouteNavigator(map,()=>current,updateStopMarkerSizes);
-$('search').oninput=renderList;$('variant').onchange=show;$('refresh').onclick=()=>load(true);$('download').onclick=()=>{if(current)download([current],routeFilename(current,features));};$('all').onclick=()=>download(features,'Lineas-de-Bus-de-Sevilla-red-completa');startOfflineApp();
+$('search').oninput=renderList;$('variant').onchange=show;$('refresh').onclick=()=>load(true);$('download').onclick=()=>{if(current)download([current],routeFilename(current,features));};startOfflineApp();
 
 async function updateOfflineStatus(note=''){
- const info=await BusOffline.workerInfo();const amount=savedLines.size;let text=(navigator.onLine===false?'Sin conexión · ':'')+amount+(amount===1?' línea guardada · ':' líneas guardadas · ')+(info.ready?'Aplicación disponible sin Internet.':'Abre la web con HTTPS y espera a que termine la preparación offline.');
- text+=' '+info.tiles+' zonas de mapa guardadas (máximo '+(info.limit||384)+').';if(navigator.onLine===false)text+=' Solo se muestran las zonas del mapa vistas y conservadas en este dispositivo.';if(note)text=note+' '+text;$('offlineStatus').textContent=text;
+ const info=await BusOffline.workerInfo();const amount=savedLines.size;let text=(navigator.onLine===false?'Sin conexión · ':'')+amount+(amount===1?' línea guardada · ':' líneas guardadas · ')+(info.ready?'Aplicación disponible sin Internet.':'Uso sin conexión no disponible.');
+ text+=' '+info.tiles+' zonas de mapa guardadas (máximo '+(info.limit||384)+').';if(note)text=note+' '+text;$('offlineStatus').textContent=text;
 }
 async function startOfflineApp(){
  try{savedLines=new Map((await BusOffline.savedLines()).map(line=>[line.id,line]));}catch{$('offlineStatus').textContent='El almacenamiento local no está disponible. No cierres la app si vas a perder conexión.';}
