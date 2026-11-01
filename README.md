@@ -25,6 +25,7 @@ El botón **Borrar mapas guardados** conserva tus líneas. **Eliminar copia de e
 ## Funciones
 
 - Búsqueda de líneas y selección del sentido de marcha.
+- Interfaz compacta, sin bloques de instrucciones ni descarga conjunta de toda la red.
 - Mapa a pantalla completa al abrir el recorrido con GPS, con giro según la dirección del desplazamiento.
 - Solo un botón de regreso al tocar el mapa, que se oculta tras cinco segundos, y un icono de ubicación para recuperar el seguimiento.
 - Exportación de un GPX del recorrido seleccionado, con trazado y paradas.
