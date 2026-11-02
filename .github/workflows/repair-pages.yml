@@ -15,6 +15,6 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Cancelar despliegue atascado
-        run: gh api --method POST repos/ndj4hfhj4v-web/lineas-bus-sevilla-gpx/pages/deployments/e81328f882b56e027a33769b3753a302da6eb159/cancel
+        run: gh api --method POST repos/ndj4hfhj4v-web/lineas-bus-sevilla-gpx/pages/deployments/5acfd5e2df068ed096ac3d86d40b4bcb3dca0566/cancel
       - name: Publicar la version actual
         run: gh api --method POST repos/ndj4hfhj4v-web/lineas-bus-sevilla-gpx/pages/builds
