@@ -79,3 +79,28 @@ function initMapViewport(map){
  return ()=>{if(frame!==null)cancelAnimationFrame(frame);window.removeEventListener('resize',schedule);window.removeEventListener('orientationchange',schedule);window.removeEventListener('pageshow',schedule);viewport?.removeEventListener('resize',schedule);viewport?.removeEventListener('scroll',schedule);};
 }
 initMapViewport(map);
+
+// NOAA general solar-position equations; sunrise/sunset use a -0.833 degree solar elevation.
+// https://gml.noaa.gov/grad/solcalc/solareqns.PDF
+function solarAltitude(now,latitude=37.3891,longitude=-5.9845){
+ const date=new Date(now),year=date.getUTCFullYear(),start=Date.UTC(year,0,1),days=(Date.UTC(year+1,0,1)-start)/86400000;
+ const gamma=2*Math.PI/days*((date.getTime()-start)/86400000-.5),radians=Math.PI/180;
+ const equation=229.18*(.000075+.001868*Math.cos(gamma)-.032077*Math.sin(gamma)-.014615*Math.cos(2*gamma)-.040849*Math.sin(2*gamma));
+ const declination=.006918-.399912*Math.cos(gamma)+.070257*Math.sin(gamma)-.006758*Math.cos(2*gamma)+.000907*Math.sin(2*gamma)-.002697*Math.cos(3*gamma)+.00148*Math.sin(3*gamma);
+ const minutes=date.getUTCHours()*60+date.getUTCMinutes()+date.getUTCSeconds()/60,solar=((minutes+equation+4*longitude)%1440+1440)%1440,hourAngle=(solar/4-180)*radians;
+ const sine=Math.sin(latitude*radians)*Math.sin(declination)+Math.cos(latitude*radians)*Math.cos(declination)*Math.cos(hourAngle);
+ return Math.asin(Math.max(-1,Math.min(1,sine)))/radians;
+}
+function nightTheme(mode,now){return mode==='night'||(mode!=='day'&&solarAltitude(now)<-.833);}
+function initNightMode(now=()=>new Date()){
+ const key='bus-sevilla-theme',select=document.getElementById('themeMode'),root=document.documentElement,meta=document.querySelector('meta[name="theme-color"]');
+ const valid=value=>['auto','day','night'].includes(value)?value:'auto';let mode='auto';try{mode=valid(localStorage.getItem(key));}catch{}
+ function apply(){const dark=nightTheme(mode,now());root.dataset.theme=dark?'night':'day';select.value=mode;if(meta)meta.setAttribute('content',dark?'#101c17':'#244b3b');}
+ function change(){mode=valid(select.value);try{localStorage.setItem(key,mode);}catch{}apply();}
+ function resume(){if(document.visibilityState!=='hidden')apply();}
+ function stored(event){if(event.key===key||event.key===null){mode=valid(event.newValue);apply();}}
+ select.addEventListener('change',change);document.addEventListener('visibilitychange',resume);window.addEventListener('pageshow',apply);window.addEventListener('storage',stored);
+ const timer=setInterval(()=>{if(mode==='auto')apply();},60000);apply();
+ return {refresh:apply,destroy(){clearInterval(timer);select.removeEventListener('change',change);document.removeEventListener('visibilitychange',resume);window.removeEventListener('pageshow',apply);window.removeEventListener('storage',stored);}};
+}
+initNightMode();

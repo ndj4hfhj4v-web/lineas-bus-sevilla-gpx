@@ -88,3 +88,21 @@ html.map-expanded,html.map-expanded body{overflow:hidden;overscroll-behavior:non
 html:has(body.map-app){height:100%;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%}.map-app{position:fixed;inset:0;width:100%;height:100%;min-height:0;overscroll-behavior:none}.map-app #gpsDetail,.map-app #gpsDetail[data-expanded="true"]{inset:auto;top:var(--app-top,0px);left:var(--app-left,0px);width:var(--app-width,100%);height:100vh;height:var(--app-height,100dvh);margin:0;max-width:none;overflow:hidden}.map-app .map-toolbar{top:calc(env(safe-area-inset-top,0px) + 12px);left:calc(env(safe-area-inset-left,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 12px)}.map-app .floating-panel{top:calc(env(safe-area-inset-top,0px) + 74px);max-height:calc(var(--app-height,100dvh) - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 98px);width:min(390px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}.map-app #linePanel{left:calc(env(safe-area-inset-left,0px) + 12px)}.map-app #optionsPanel{right:calc(env(safe-area-inset-right,0px) + 12px)}.map-app .lines{min-height:0}.map-app input,.map-app select{font-size:16px}.map-app #map .map-location{right:calc(env(safe-area-inset-right,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 26px)}
 
 .map-app .lines{touch-action:pan-y;-webkit-overflow-scrolling:touch}
+
+.theme-settings{margin:0 0 14px}.map-app .theme-settings select{margin-bottom:0}
+:root[data-theme="night"]{color-scheme:dark;background:#101c17;color:#dce8e0}
+:root[data-theme="night"] .map-app,:root[data-theme="night"] .map-app #gpsDetail,:root[data-theme="night"] .map-app #map{background:#101c17;color:#dce8e0}
+:root[data-theme="night"] .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) saturate(.55) brightness(.78) contrast(.95)}
+:root[data-theme="night"] .leaflet-overlay-pane path[stroke="#315e46"]{stroke:#8bd6aa}
+:root[data-theme="night"] .map-app button,:root[data-theme="night"] .map-app input,:root[data-theme="night"] .map-app select,:root[data-theme="night"] .floating-panel{background:#172b22;color:#dce8e0;border-color:#3b5748}
+:root[data-theme="night"] .map-app button:hover,:root[data-theme="night"] .line.active{background:#2a4938}
+:root[data-theme="night"] .map-app .lines{background:#112219}
+:root[data-theme="night"] .map-app .primary,:root[data-theme="night"] .map-app #optionsToggle{background:#2e5b43;border-color:#467957;color:#fff}
+:root[data-theme="night"] .panel-heading{border-color:#3b5748}
+:root[data-theme="night"] .map-app .listhead,:root[data-theme="night"] .map-app .mapfooter,:root[data-theme="night"] .map-app .statusbar,:root[data-theme="night"] .map-app .offline-tools p,:root[data-theme="night"] .map-app footer{color:#b3c8ba;border-color:#3b5748}
+:root[data-theme="night"] .map-app .stops{border-color:#3b5748}
+:root[data-theme="night"] .map-app input::placeholder{color:#a8bdae}
+:root[data-theme="night"] .leaflet-bar a{background:#172b22;color:#dce8e0;border-color:#3b5748}
+:root[data-theme="night"] .leaflet-control-attribution{background:#13251de8;color:#c7d7cd}
+:root[data-theme="night"] .leaflet-control-attribution a{color:#bde5ca}
+:root[data-theme="night"] .map-app .gps-panel{background:#382f1d;color:#ffe2a7;border-color:#68552b}
