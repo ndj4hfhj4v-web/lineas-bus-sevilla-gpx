@@ -106,3 +106,5 @@ html:has(body.map-app){height:100%;overflow:hidden;overscroll-behavior:none;-web
 :root[data-theme="night"] .leaflet-control-attribution{background:#13251de8;color:#c7d7cd}
 :root[data-theme="night"] .leaflet-control-attribution a{color:#bde5ca}
 :root[data-theme="night"] .map-app .gps-panel{background:#382f1d;color:#ffe2a7;border-color:#68552b}
+
+.map-app .menu-entry{display:flex;width:100%;align-items:center;justify-content:space-between;gap:12px;min-height:48px;text-align:left;font-weight:600;margin:0 0 12px}.map-app .menu-entry>span:last-child{font-size:24px;line-height:1}.map-app #optionsTitle{flex:1}.map-app #optionsBack{margin-right:8px}.map-app #settingsView .theme-settings{margin:0}
