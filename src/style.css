@@ -112,3 +112,5 @@ html:has(body.map-app){height:100%;overflow:hidden;overscroll-behavior:none;-web
 .map-app #optionsPanel[data-view="main"]{width:min(270px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}.map-app #optionsPanel[data-view="settings"]{width:min(330px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}.map-app #optionsMain .menu-entry{margin-bottom:8px}.map-app #optionsMain .statusbar{padding:0;margin:0}.map-app #optionsMain #refresh{width:100%;min-height:48px;font-size:14px;text-align:left;padding:11px 15px}.map-app #offlineView .offline-tools{padding-top:0}
 
 .map-app #optionsPanel[data-view="gpx"]{width:min(330px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}
+
+.map-settings{margin-bottom:16px}.map-app .map-settings select{margin-bottom:0}:root[data-theme="night"][data-map-type="aerial"] .leaflet-tile-pane{filter:brightness(.66) saturate(.8)}:root[data-map-type="aerial"] .leaflet-overlay-pane path[stroke="#315e46"]{filter:drop-shadow(0 0 2px #fff)}

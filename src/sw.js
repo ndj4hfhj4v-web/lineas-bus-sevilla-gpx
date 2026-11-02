@@ -4,7 +4,8 @@ const BASE=new URL('./',self.location.href),INDEX=new URL('index.html',BASE).hre
 const ASSETS=['index.html','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png'];
 const MAX_TILES=384,MAX_TILE_BYTES=512*1024;
 function isMapTile(url){
- if(url.origin!=='https://www.ign.es'||url.pathname!=='/wmts/ign-base'||url.searchParams.get('REQUEST')!=='GetTile'||url.searchParams.get('LAYER')!=='IGNBaseTodo')return false;
+ const layers={'/wmts/ign-base':'IGNBaseTodo','/wmts/pnoa-ma':'OI.OrthoimageCoverage','/wmts/mapa-raster':'MTN'};
+ if(url.origin!=='https://www.ign.es'||!Object.prototype.hasOwnProperty.call(layers,url.pathname)||url.searchParams.get('REQUEST')!=='GetTile'||url.searchParams.get('LAYER')!==layers[url.pathname])return false;
  const z=Number(url.searchParams.get('TILEMATRIX')),x=Number(url.searchParams.get('TILECOL')),y=Number(url.searchParams.get('TILEROW'));
  if(!Number.isInteger(z)||z<11||z>18||!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=2**z||y>=2**z)return false;
  const lon=(x+.5)/2**z*360-180,lat=Math.atan(Math.sinh(Math.PI*(1-2*(y+.5)/2**z)))*180/Math.PI;

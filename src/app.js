@@ -1,7 +1,12 @@
 const $=id=>document.getElementById(id);let features=[],groups=[],selected='',current=null,routeLayer=null,stopMarkers=[],stopMarkerRadius=null,background=null,savedOnly=false,savedLines=new Map();
+const MAP_BACKGROUNDS={street:{service:'ign-base',layer:'IGNBaseTodo'},aerial:{service:'pnoa-ma',layer:'OI.OrthoimageCoverage'},topographic:{service:'mapa-raster',layer:'MTN'}};
+function validMapType(value){return ['street','aerial','topographic'].includes(value)?value:'street';}
+function readMapType(){try{return validMapType(localStorage.getItem('bus-sevilla-map-type'));}catch{return 'street';}}
+function mapTileUrl(type){const source=MAP_BACKGROUNDS[validMapType(type)];return 'https://www.ign.es/wmts/'+source.service+'?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER='+source.layer+'&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}';}
+const initialMapType=readMapType();
 const map=typeof L!=='undefined'?L.map('map',{rotate:true,rotateControl:false,dragRotate:false,touchRotate:false,shiftKeyRotate:false}).setView([37.39,-5.99],12):null;
 if(map){
- background=L.tileLayer('https://www.ign.es/wmts/ign-base?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER=IGNBaseTodo&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',{maxZoom:19,maxNativeZoom:18,crossOrigin:true,attribution:'Mapa: <a href="https://www.ign.es/">IGN · CC BY 4.0</a>'});
+ background=L.tileLayer(mapTileUrl(initialMapType),{maxZoom:19,maxNativeZoom:18,crossOrigin:true,attribution:'Mapa: <a href="https://www.ign.es/">IGN · CC BY 4.0</a>'});
  const notice=document.createElement('p');notice.className='hint';notice.setAttribute('role','status');notice.hidden=true;$('map').after(notice);
  background.on('tileerror',()=>{notice.hidden=false;notice.textContent='No se puede cargar parte del mapa de fondo. El recorrido, las paradas y las descargas GPX siguen disponibles.';});
  background.on('loading',()=>{notice.hidden=true;});let mapStatusTimer; background.on('load',()=>{clearTimeout(mapStatusTimer);mapStatusTimer=setTimeout(()=>updateOfflineStatus(),600);});background.addTo(map);
@@ -105,3 +110,13 @@ function initNightMode(now=()=>new Date()){
  return {refresh:apply,destroy(){clearInterval(timer);select.removeEventListener('change',change);document.removeEventListener('visibilitychange',resume);window.removeEventListener('pageshow',apply);window.removeEventListener('storage',stored);}};
 }
 initNightMode();
+
+function initMapType(layer,initialType='street'){
+ const select=document.getElementById('mapType'),root=document.documentElement,key='bus-sevilla-map-type';let type=validMapType(initialType);
+ function apply(value){const next=validMapType(value);if(next!==type){layer?.setUrl(mapTileUrl(next));type=next;}select.value=type;root.dataset.mapType=type;}
+ function change(){apply(select.value);try{localStorage.setItem(key,type);}catch{}}
+ function stored(event){if(event.key===key||event.key===null)apply(event.newValue);}
+ select.addEventListener('change',change);window.addEventListener('storage',stored);apply(type);
+ return ()=>{select.removeEventListener('change',change);window.removeEventListener('storage',stored);};
+}
+initMapType(background,initialMapType);
