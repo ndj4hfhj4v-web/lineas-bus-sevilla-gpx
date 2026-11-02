@@ -21,6 +21,12 @@ function tile(z=16,x=31678,y=25422){return new URL('https://www.ign.es/wmts/ign-
  const request=new Request(tile().href),first=event();let response=await ctx.mapTile(request,first);await Promise.all(first.waiting);assert.equal(response.status,200);assert.equal(requests,1);
  online=false;response=await ctx.mapTile(request,event());assert.equal(requests,1,'A saved tile is reused without a download');assert.equal((await response.arrayBuffer()).byteLength,3);
  const missing=await ctx.mapTile(new Request(tile(16,31679).href),event());assert.match(await missing.text(),/Mapa no guardado/,'Missing geography must be explicit');
+ for(const [service,layer] of [['pnoa-ma','OI.OrthoimageCoverage'],['mapa-raster','MTN']]){
+  const image=tile();image.pathname='/wmts/'+service;image.searchParams.set('LAYER',layer);assert(ctx.isMapTile(image));
+  const wrong=new URL(image);wrong.searchParams.set('LAYER','wrong');assert(!ctx.isMapTile(wrong),'Only the configured layer may be cached');
+  online=true;const beforeRequests=requests,ready=event();const result=await ctx.mapTile(new Request(image),ready);await Promise.all(ready.waiting);assert.equal(result.status,200);assert.equal(requests,beforeRequests+1,'Each map type keeps its own tiles');
+  online=false;assert.equal((await ctx.mapTile(new Request(image),event())).status,200);assert.equal(requests,beforeRequests+1,'Aerial and topographic tiles are reused offline');
+ }
  const shell=await ctx.shell(new Request(scope));assert.equal(await shell.text(),'CACHED APP','The app starts without a server');
  const cache=await caches.open('bus-sevilla-tiles-v1');for(let n=0;n<390;n++)await cache.put('https://example.test/tile/'+n,new Response('tile'));await ctx.trim(cache);assert.equal((await cache.keys()).length,384,'Map storage is bounded');
  const opaque={type:'opaque',ok:true};const before=(await cache.keys()).length;await ctx.storeTile(request,opaque);assert.equal((await cache.keys()).length,before,'Opaque quota-heavy responses are not stored');
