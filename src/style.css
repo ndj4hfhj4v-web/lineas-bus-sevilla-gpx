@@ -114,3 +114,5 @@ html:has(body.map-app){height:100%;overflow:hidden;overscroll-behavior:none;-web
 .map-app #optionsPanel[data-view="gpx"]{width:min(330px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}
 
 .map-settings{margin-bottom:16px}.map-app .map-settings select{margin-bottom:0}:root[data-theme="night"][data-map-type="aerial"] .leaflet-tile-pane{filter:brightness(.66) saturate(.8)}:root[data-map-type="aerial"] .leaflet-overlay-pane path[stroke="#315e46"]{filter:drop-shadow(0 0 2px #fff)}
+
+.map-app #optionsPanel[data-view="info"]{width:min(360px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}.map-app .info-content{font-size:14px;line-height:1.55}.map-app .info-content h2{font-size:16px;margin:20px 0 8px}.map-app .info-content h2:first-child{margin-top:0}.map-app .info-content p{margin:0 0 12px}
