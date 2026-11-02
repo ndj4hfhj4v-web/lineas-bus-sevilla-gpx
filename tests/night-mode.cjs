@@ -1,0 +1,23 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const app=fs.readFileSync('src/app.js','utf8');
+const source=app.slice(app.indexOf('function solarAltitude('),app.lastIndexOf('initNightMode();'));
+function target(extra={}){return {...extra,listeners:{},addEventListener(name,fn){this.listeners[name]=fn;},removeEventListener(name){delete this.listeners[name];}};}
+const root={dataset:{}},select=target({value:'auto'}),meta={setAttribute(name,value){this[name]=value;}},store=new Map();
+const doc=target({documentElement:root,visibilityState:'visible',getElementById:()=>select,querySelector:()=>meta}),win=target();
+let interval,clock=new Date('2026-11-02T00:00:00Z'),cancelled=false;
+const context={document:doc,window:win,localStorage:{getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value)},setInterval(fn,ms){assert.equal(ms,60000);interval=fn;return 1;},clearInterval(){cancelled=true;}};
+vm.runInNewContext(source,context);
+for(const instant of ['2026-01-01T00:00:00Z','2026-01-01T07:00:00Z','2026-01-01T18:00:00Z','2026-07-01T04:30:00Z','2026-07-01T20:20:00Z'])assert.equal(context.nightTheme('auto',new Date(instant)),true,instant);
+for(const instant of ['2026-01-01T08:00:00Z','2026-01-01T16:30:00Z','2026-07-01T05:30:00Z','2026-07-01T19:30:00Z','2028-02-29T12:00:00Z'])assert.equal(context.nightTheme('auto',new Date(instant)),false,instant);
+assert.equal(context.nightTheme('night',new Date('2026-07-01T12:00:00Z')),true);
+assert.equal(context.nightTheme('day',new Date('2026-07-01T00:00:00Z')),false);
+const controller=context.initNightMode(()=>clock);assert.equal(root.dataset.theme,'night');assert.equal(select.value,'auto');
+clock=new Date('2026-11-02T12:00:00Z');interval();assert.equal(root.dataset.theme,'day','Automatic mode follows the sun without a network request');
+select.value='night';select.listeners.change();assert.equal(root.dataset.theme,'night');assert.equal(store.get('bus-sevilla-theme'),'night');assert.equal(meta.content,'#101c17');
+clock=new Date('2026-11-03T12:00:00Z');interval();assert.equal(root.dataset.theme,'night','Manual choice is not overwritten by automatic checks');
+controller.destroy();context.initNightMode(()=>clock).destroy();assert.equal(root.dataset.theme,'night','Manual choice survives a new app session');
+win.listeners={};context.localStorage.getItem=()=>{throw Error('Storage unavailable');};context.localStorage.setItem=()=>{throw Error('Storage unavailable');};
+const fallback=context.initNightMode(()=>clock);assert.equal(root.dataset.theme,'day');select.value='night';select.listeners.change();assert.equal(root.dataset.theme,'night','Manual mode still works without storage');
+select.value='auto';select.listeners.change();clock=new Date('2026-11-03T22:00:00Z');doc.listeners.visibilitychange();assert.equal(root.dataset.theme,'night','Returning to the app refreshes automatic mode');
+win.listeners.storage({key:'bus-sevilla-theme',newValue:'day'});assert.equal(root.dataset.theme,'day');fallback.destroy();assert(cancelled);
+console.log('Correcto: modo solar de Sevilla, invierno/verano, año bisiesto, cambio automático, elección manual, persistencia y uso sin red.');
