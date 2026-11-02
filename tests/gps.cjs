@@ -14,7 +14,7 @@ assert.equal(gpsMotionCourse(anchor,fix(0,0,{time:2000,speed:5,heading:359})).he
 assert.equal(gpsMotionCourse(anchor,fix(.001,0,{time:40000})).heading,null,'Do not infer direction across a GPS outage');
 
 
-const elements=Object.fromEntries(['expandMap','startGps','centerGps','gpsDetail','gpsPanel','gpsStatus','gpsMetrics','gpsStop'].map(id=>[id,{textContent:'',hidden:id==='expandMap',disabled:false,dataset:{},events:{},addEventListener(e,fn){this.events[e]=fn;},setAttribute(k,v){this[k]=v;},focus(){}}]));
+const elements=Object.fromEntries(['startGps','centerGps','gpsDetail','gpsPanel','gpsStatus'].map(id=>[id,{textContent:'',hidden:true,disabled:false,dataset:{},events:{},addEventListener(e,fn){this.events[e]=fn;},setAttribute(k,v){this[k]=v;},focus(){}}]));
 const listeners={},windowListeners={},mapEvents={},classes=new Set();let scrollTop=null;
 global.document={documentElement:{classList:{add:k=>classes.add(k),remove:k=>classes.delete(k)}},getElementById:id=>elements[id],visibilityState:'visible',addEventListener:(e,fn)=>listeners[e]=fn};
 global.window={isSecureContext:true,addEventListener:(e,fn)=>windowListeners[e]=fn,scrollTo:options=>{scrollTop=options.top;}};
@@ -29,11 +29,11 @@ let arrowStyle={};function layer(){return {getElement(){return {querySelector(){
 let route={geometry:{paths:[[[0,0],[.001,0]]]},stops};const nav=createRouteNavigator(map,()=>route);
 function position(lon=0,extra={}){now+=1000;success({coords:{latitude:0,longitude:lon,accuracy:4,speed:8,heading:90,...extra},timestamp:now});}
 try{
- nav.routeChanged();assert.equal(elements.startGps.disabled,false);assert.equal(elements.expandMap.hidden,true,'No expand button on the home screen');
- elements.startGps.onclick();elements.startGps.onclick();assert.equal(watchCalls,1);assert.equal(elements.expandMap.hidden,false);assert.equal(elements.centerGps.hidden,true);assert.equal(elements.centerGps.disabled,true);assert(classes.has('map-expanded'));
+ nav.routeChanged();assert.equal(elements.startGps.disabled,false);
+ elements.startGps.onclick();elements.startGps.onclick();assert.equal(watchCalls,1);assert.equal(elements.centerGps.hidden,true);assert.equal(elements.centerGps.disabled,true);assert(classes.has('map-expanded'));
  error({code:3});assert.match(elements.gpsStatus.textContent,/ubicación precisa/);assert.equal(approxCalls,1);
  approxSuccess({coords:{latitude:0,longitude:0,accuracy:500},timestamp:now});assert.match(elements.gpsStatus.textContent,/poco precisa/);
- position();assert.equal(elements.gpsStatus.textContent,'');assert.equal(map.zoom,16);assert.equal(map.heading,90);assert.match(elements.gpsStop.textContent,/Origen/);assert.equal(elements.centerGps.disabled,false);
+ position();assert.equal(elements.gpsStatus.textContent,'');assert.equal(map.zoom,16);assert.equal(map.heading,90);assert.equal(elements.gpsPanel.hidden,true,'A reliable fix shows no position text');assert.equal(elements.centerGps.disabled,false);
  map.getBearing=()=>270;mapEvents.rotate();assert.equal(arrowStyle.transform,'rotate(360deg)','Arrow compensates map rotation');
  position(.0001);assert(map.pans>0,'Movement is smoothed');
  mapEvents.dragstart();assert.equal(elements.centerGps.hidden,false,'Driver button appears after dragging');assert.equal(elements.centerGps['aria-pressed'],'false');map.ll=[1,1];position(.0002,{heading:180});assert.deepEqual(map.ll,[1,1],'Dragging pauses map following but GPS keeps receiving positions');
@@ -46,10 +46,10 @@ try{
  const beforeOld=[...map.ll];success({coords:{latitude:0,longitude:0,accuracy:1,speed:8,heading:0},timestamp:now-60000});assert.deepEqual(map.ll,beforeOld,'Stale fixes are ignored');
  elements.gpsDetail.dataset.menuOpen='true';nav.revealControls();assert.equal(timeouts.size,0,'An open menu must not auto-hide');elements.gpsDetail.dataset.menuOpen='false';nav.revealControls();
  expireControls();assert.equal(elements.gpsDetail.dataset.optionsHidden,'true');mapEvents.dragstart();assert.equal(elements.centerGps.hidden,false,'Driver button remains available while following is paused');elements.centerGps.onclick();elements.gpsDetail.events.pointerdown();assert.equal(elements.gpsDetail.dataset.optionsHidden,'false');assert.equal(timeouts.size,1);
- const late=success,lateApprox=approxSuccess;elements.expandMap.onclick();assert.equal(nav.isActive(),false);assert.equal(cleared.length,1);assert(intervalCleared);assert.equal(scrollTop,0);assert(!classes.has('map-expanded'));assert.equal(elements.startGps.hidden,false);assert.equal(elements.expandMap.hidden,true);assert.equal(elements.centerGps.hidden,true);assert.equal(elements.gpsPanel.hidden,true);assert.equal(timeouts.size,0);assert.equal(map.bearing,0);
+ const late=success,lateApprox=approxSuccess;nav.exit();assert.equal(nav.isActive(),false);assert.equal(cleared.length,1);assert(intervalCleared);assert.equal(scrollTop,0);assert(!classes.has('map-expanded'));assert.equal(elements.startGps.hidden,false);assert.equal(elements.centerGps.hidden,true);assert.equal(elements.gpsPanel.hidden,true);assert.equal(timeouts.size,0);assert.equal(map.bearing,0);
  late({coords:{latitude:0,longitude:0,accuracy:1},timestamp:now});lateApprox({coords:{latitude:0,longitude:0,accuracy:1},timestamp:now});assert.equal(elements.centerGps.hidden,true,'Late fixes do not restart navigation');
- elements.startGps.onclick();route={...route};nav.routeChanged();assert.equal(nav.isActive(),false);assert.equal(cleared.length,2);elements.expandMap.onclick();
- elements.startGps.onclick();error({code:1});assert.equal(nav.isActive(),false);assert.match(elements.gpsStatus.textContent,/denegado/);assert.equal(elements.centerGps.hidden,true);elements.expandMap.onclick();
+ elements.startGps.onclick();route={...route};nav.routeChanged();assert.equal(nav.isActive(),false);assert.equal(cleared.length,2);nav.exit();
+ elements.startGps.onclick();error({code:1});assert.equal(nav.isActive(),false);assert.match(elements.gpsStatus.textContent,/denegado/);assert.equal(elements.centerGps.hidden,true);nav.exit();
  window.isSecureContext=false;elements.startGps.onclick();assert.match(elements.gpsStatus.textContent,/HTTPS/);assert.equal(watchCalls,3);
  const oldStart=elements.startGps;delete elements.startGps;window.isSecureContext=true;nav.start();assert.equal(nav.isActive(),true,'Navigation can start directly without an intermediate GPS button');nav.exit();elements.startGps=oldStart;
  console.log('Correcto: rumbo, recuperación GPS, icono de ubicación tras mover el mapa, suavizado, vuelta al inicio, permisos y limpieza de recursos.');
