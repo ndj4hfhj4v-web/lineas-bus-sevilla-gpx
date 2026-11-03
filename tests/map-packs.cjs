@@ -1,0 +1,25 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const offline=fs.readFileSync('src/offline.js','utf8');
+const source=offline.slice(offline.indexOf(' // Explicit, user-requested'),offline.indexOf(' async function persistence()'));
+class Cache{constructor(){this.data=new Map();this.fail=false;}async match(url){return this.data.get(typeof url==='string'?url:url.url)?.clone();}async put(url,response){if(this.fail)throw Error('QuotaExceededError');this.data.set(typeof url==='string'?url:url.url,response.clone());}async keys(){return [...this.data.keys()].map(url=>new Request(url));}}
+const buckets=new Map(),records=new Map();let requests=0,failNetwork=false;
+const store={get:key=>records.get(key),put:value=>records.set(value.id,value),delete:key=>records.delete(key)};
+const context={URL,Request,Response,Map,Math,Date,Number,Promise,Error,AbortController,navigator:{onLine:true},caches:{open:async name=>{if(!buckets.has(name))buckets.set(name,new Cache());return buckets.get(name);}},run:async(name,mode,operation)=>operation(store),announce(){},setTimeout(fn,ms){if(ms<20000)queueMicrotask(fn);return 1;},clearTimeout(){},fetch:async()=>{requests++;if(failNetwork)throw Error('No network');return new Response(new Uint8Array([255,216,255,217]),{headers:{'content-type':'image/jpeg'}});}};
+vm.runInNewContext(source+';globalThis.api={planMapPack,saveMapPack,savedMapPacks};',context);
+const api=context.api,template='https://www.ign.es/wmts/ign-base?SERVICE=WMTS&REQUEST=GetTile&LAYER=IGNBaseTodo&TILEMATRIX={z}&TILECOL={x}&TILEROW={y}';
+const items=[{geometry:{paths:[[[-5.99,37.39],[-5.98,37.40]]]}},{geometry:{paths:[[[-5.98,37.40],[-5.99,37.39]]]}}];
+(async()=>{
+ const plan=api.planMapPack(items,template);assert(plan.length>384,'A full route pack may exceed the temporary cache');assert.equal(new Set(plan.map(t=>t.url)).size,plan.length,'Shared directions do not download duplicates');assert.deepEqual([...new Set(plan.map(t=>t.z))],[11,12,13,14,15,16,17,18]);
+ const sparse=api.planMapPack([{geometry:{paths:[[[-6.02,37.39],[-5.94,37.39]]]}}],template);const mid=api.planMapPack([{geometry:{paths:[[[-5.98,37.39]]]}}],template);assert(mid.every(t=>sparse.some(s=>s.url===t.url)),'Sparse GPX segments still cover the streets between vertices');
+ assert.throws(()=>api.planMapPack(items,'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),/Proveedor/);assert.throws(()=>api.planMapPack([{geometry:{paths:[[[0,0]]]}}],template),/fuera del área/);
+ const recent=await context.caches.open('bus-sevilla-tiles-v1');await recent.put(plan[0].url,new Response('cached',{headers:{'content-type':'image/jpeg'}}));let progress;
+ await api.saveMapPack('05','street',items,template,{onProgress:p=>{progress=p;}});assert.equal(requests,plan.length-1,'Reuse previously viewed tiles');assert.equal(progress.completed,plan.length);assert.equal((await api.savedMapPacks('05'))[0].count,plan.length);
+ context.navigator.onLine=false;const before=requests;await api.saveMapPack('05','street',items,template);assert.equal(requests,before,'A complete pack is reused in airplane mode');
+ const protectedCache=await context.caches.open('bus-sevilla-map-packs-v1');recent.data.clear();assert(plan.every(t=>protectedCache.data.has(t.url)),'Temporary cache clearing cannot remove the protected route map');
+ const aerial=template.replace('ign-base','pnoa-ma').replace('IGNBaseTodo','OI.OrthoimageCoverage');context.navigator.onLine=true;failNetwork=true;await assert.rejects(api.saveMapPack('05','aerial',items,aerial));assert(!(await api.savedMapPacks('05')).some(p=>p.type==='aerial'),'Failed download is never marked ready');failNetwork=false;
+ const cancel=new AbortController();await assert.rejects(api.saveMapPack('05','aerial',items,aerial,{signal:cancel.signal,onProgress:p=>{if(p.completed>=3)cancel.abort();}}));const partial=protectedCache.data.size;assert(partial>plan.length);assert(!(await api.savedMapPacks('05')).some(p=>p.type==='aerial'));
+ const networkBefore=requests;await api.saveMapPack('05','aerial',items,aerial);assert(requests-networkBefore<plan.length,'Retry resumes partial downloads');assert.equal((await api.savedMapPacks('05')).length,2,'Map backgrounds stay separate');
+ const topo=template.replace('ign-base','mapa-raster').replace('IGNBaseTodo','MTN');protectedCache.fail=true;await assert.rejects(api.saveMapPack('05','topographic',items,topo),/Quota/);assert(!(await api.savedMapPacks('05')).some(p=>p.type==='topographic'),'Storage failures are never marked ready');protectedCache.fail=false;
+ context.fetch=async()=>new Response('<svg>Mapa no guardado</svg>',{headers:{'content-type':'image/svg+xml'}});await assert.rejects(api.saveMapPack('31','topographic',items,topo),/imagen válida/);assert.equal((await api.savedMapPacks('31')).length,0,'Offline placeholders cannot count as downloaded maps');
+ console.log('Correcto: cobertura de la línea, todos los zooms de navegación, reutilización, modo avión, cancelación, reanudación y fallos de red o espacio.');
+})().catch(error=>{console.error(error);process.exit(1);});

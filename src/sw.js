@@ -1,5 +1,5 @@
 /* App shell version is replaced by the build. Route/GPX data lives in IndexedDB. */
-const SHELL='bus-sevilla-shell-__BUILD_ID__',TILES='bus-sevilla-tiles-v1';
+const SHELL='bus-sevilla-shell-__BUILD_ID__',TILES='bus-sevilla-tiles-v1',PACKS='bus-sevilla-map-packs-v1';
 const BASE=new URL('./',self.location.href),INDEX=new URL('index.html',BASE).href;
 const ASSETS=['index.html','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png'];
 const MAX_TILES=384,MAX_TILE_BYTES=512*1024;
@@ -24,6 +24,7 @@ async function storeTile(request,response){
  await writes;
 }
 async function mapTile(request,event){
+ try{const saved=await (await caches.open(PACKS)).match(request);if(saved)return saved;}catch{}
  let cache,hit;try{cache=await caches.open(TILES);hit=await cache.match(request);}catch{/* Storage failure must not prevent the online map from loading. */}if(hit)return hit;
  if(pending.has(request.url))return (await pending.get(request.url)).clone();
  const task=(async()=>{try{const response=await fetch(request);if(!response.ok)return missingTile();event.waitUntil(storeTile(request,response).catch(warning));return response;}catch{return missingTile();}})();
@@ -37,4 +38,4 @@ self.addEventListener('fetch',event=>{const request=event.request;if(request.met
  if(url.origin===BASE.origin&&ASSETS.some(path=>new URL(path,BASE).pathname===url.pathname)){event.respondWith((async()=>{const cache=await caches.open(SHELL);return await cache.match(url.href.split('?')[0])||fetch(request);})());return;}
  if(isMapTile(url))event.respondWith(mapTile(request,event));
 });
-self.addEventListener('message',event=>{if(event.data?.type==='OFFLINE_STATUS')event.waitUntil((async()=>{try{const cache=await caches.open(TILES),app=await caches.open(SHELL);event.ports[0]?.postMessage({ready:!!(await app.match(INDEX)),tiles:(await cache.keys()).length,limit:MAX_TILES});}catch{event.ports[0]?.postMessage({ready:false,tiles:0});}})());});
+self.addEventListener('message',event=>{if(event.data?.type==='OFFLINE_STATUS')event.waitUntil((async()=>{try{const cache=await caches.open(TILES),packs=await caches.open(PACKS),app=await caches.open(SHELL);event.ports[0]?.postMessage({packTiles:(await packs.keys()).length,ready:!!(await app.match(INDEX)),tiles:(await cache.keys()).length,limit:MAX_TILES});}catch{event.ports[0]?.postMessage({ready:false,tiles:0});}})());});

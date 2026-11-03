@@ -25,7 +25,7 @@ function createGpsCamera(map,onFrame=()=>{}){
  let frame=null,point=null,bearing=null;
  const raf=typeof requestAnimationFrame==='function'?requestAnimationFrame:null;
  function cancel(){if(frame!==null&&typeof cancelAnimationFrame==='function')cancelAnimationFrame(frame);frame=null;}
- function draw(p,b,snap=false){if(b!==null&&map.setBearing)map.setBearing(b);const zoom=snap?Math.max(16,map.getZoom()):map.getZoom(),center=gpsLookAheadCenter(map,p,b,zoom);if(snap||!map.panTo)map.setView(center,zoom,{animate:false});else map.panTo(center,{animate:false});point=p;bearing=b;onFrame(p);}
+ function draw(p,b,snap=false){if(b!==null&&map.setBearing)map.setBearing(b);const zoom=!point?Math.max(16,map.getZoom()):map.getZoom(),center=gpsLookAheadCenter(map,p,b,zoom);if(snap||!map.panTo)map.setView(center,zoom,{animate:false,reset:snap});else map.panTo(center,{animate:false});point=p;bearing=b;onFrame(p);}
  function follow(fix,heading,reset=false){
   cancel();if(map.stopHeadingUp)map.stopHeadingUp();
   const target={lat:fix.lat,lon:fix.lon},targetBearing=heading===null?(bearing??(map.getBearing?map.getBearing():null)):(360-heading)%360;
@@ -60,7 +60,7 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  el('gpsDetail').addEventListener('keydown',revealOptions);
  el('gpsDetail').addEventListener('focusin',revealOptions);
  function expand(){
-  if(!map||!getRoute())return;
+  if(!map)return;
   const detail=el('gpsDetail');
   if(!expanded){returnFocus=document.activeElement;expanded=true;detail.dataset.expanded='true';document.documentElement.classList.add('map-expanded');}
   revealOptions();map.invalidateSize();
@@ -82,7 +82,7 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  function position(data,token){if(!active||token!==generation)return;const c=data.coords;if(!Number.isFinite(c.latitude)||!Number.isFinite(c.longitude)||!Number.isFinite(c.accuracy)||c.accuracy<0||Math.abs(c.latitude)>90||Math.abs(c.longitude)>180)return;
   if(last&&data.timestamp<=last.time)return;
   if(!Number.isFinite(data.timestamp)||Date.now()-data.timestamp>30000){status('La posición recibida es antigua. Esperando una señal GPS reciente…','warning');return;}
-  const route=getRoute();if(!route)return;if(last&&last.accuracy<=50&&c.accuracy>100){status('Señal GPS poco precisa. Conservando la última posición fiable…','warning');return;}
+  if(last&&last.accuracy<=50&&c.accuracy>100){status('Señal GPS poco precisa. Conservando la última posición fiable…','warning');return;}
   const next={lat:c.latitude,lon:c.longitude,accuracy:c.accuracy,time:data.timestamp,speed:c.speed,heading:c.heading};
   if(last&&data.timestamp-last.time<10000&&Number.isFinite(c.speed)&&c.speed<.6&&gpsDistance([last.lon,last.lat],[next.lon,next.lat])<Math.max(4,Math.min(10,c.accuracy*.6))){next.lat=last.lat;next.lon=last.lon;}
   if(last&&data.timestamp-last.time<10000&&gpsDistance([last.lon,last.lat],[next.lon,next.lat])>Math.max(80,(data.timestamp-last.time)/1000*45+last.accuracy+next.accuracy))return;
@@ -94,14 +94,14 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
   status(poor?'Señal GPS poco precisa. Espera una mejor señal.':'',poor?'warning':'normal');
   controls();
  }
- function start(){if(active)return;if(!getRoute()){status('Selecciona primero una línea y el sentido.','warning');return;}if(!map){status('No se ha podido cargar el mapa. Recarga la página para usar el GPS.','warning');return;}if(!window.isSecureContext||!navigator.geolocation){status('Abre la web publicada con HTTPS en el navegador del móvil para usar su ubicación.','warning');return;}
+ function start(){if(active)return;if(!map){status('No se ha podido cargar el mapa. Recarga la página para usar el GPS.','warning');return;}if(!window.isSecureContext||!navigator.geolocation){status('Abre la web publicada con HTTPS en el navegador del móvil para usar su ubicación.','warning');return;}
   active=true;following=true;approximatePending=false;approximateAttempt=0;routeKey=getRoute();const token=++generation;expand();controls();status('Buscando tu ubicación… Permite el acceso si el navegador lo solicita. La primera posición puede tardar hasta un minuto.');
   try{watch=navigator.geolocation.watchPosition(data=>position(data,token),error=>{if(!active||token!==generation)return;if(error.code===1){stop('Acceso a la ubicación denegado. Puedes permitirlo desde los ajustes del sitio en tu navegador.');el('gpsPanel').dataset.state='warning';}else{if(last&&Date.now()-last.time<=30000)return;status(error.code===3?'Todavía no hay una posición reciente. Activa la ubicación precisa del navegador, prueba al aire libre y mantén esta pantalla abierta.':'El móvil no está proporcionando ubicación. Revisa su localización y el permiso del navegador; seguimos intentando.','warning');if(Date.now()-approximateAttempt>20000)requestApproximate(token);}},{enableHighAccuracy:true,maximumAge:0,timeout:45000});
    requestApproximate(token);
    timer=setInterval(()=>{if(!active)return;if(last&&Date.now()-last.time>30000){status('Sin una posición reciente. La última ubicación puede estar desactualizada.','warning');if(marker)marker.setOpacity(.4);}if((!last||Date.now()-last.time>30000)&&Date.now()-approximateAttempt>20000)requestApproximate(token);},5000);keepAwake();
   }catch{stop('No se ha podido iniciar el GPS. Abre la web en el navegador del móvil y revisa el permiso de ubicación.');el('gpsPanel').dataset.state='warning';}
  }
- if(el('startGps'))el('startGps').onclick=start;el('centerGps').onclick=()=>{following=true;viewPosition=null;followPosition();controls();};
+ if(el('startGps'))el('startGps').onclick=start;el('centerGps').onclick=()=>{if(!last)return;camera.cancel();try{if(map.stop)map.stop();zooming=false;following=true;viewPosition=null;followPosition();if(Date.now()-last.time<30000&&last.accuracy<=80)status('');}catch{following=false;status('No se ha podido volver a tu ubicación. Pulsa de nuevo el botón.','warning');}controls();};
  if(map)map.on('rotate',orientArrow);
  if(map)map.on('resize',()=>{if(active&&following)followPosition();});
  if(map)map.on('zoomstart',()=>{zooming=true;camera.cancel();});

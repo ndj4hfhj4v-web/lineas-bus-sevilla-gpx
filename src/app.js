@@ -4,16 +4,20 @@ function validMapType(value){return ['street','aerial','topographic'].includes(v
 function readMapType(){try{return validMapType(localStorage.getItem('bus-sevilla-map-type'));}catch{return 'street';}}
 function mapTileUrl(type){const source=MAP_BACKGROUNDS[validMapType(type)];return 'https://www.ign.es/wmts/'+source.service+'?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER='+source.layer+'&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}';}
 const initialMapType=readMapType();
-const map=typeof L!=='undefined'?L.map('map',{rotate:true,rotateControl:false,dragRotate:false,touchRotate:false,shiftKeyRotate:false,zoomControl:false,zoomAnimation:false,fadeAnimation:false,markerZoomAnimation:false}).setView([37.39,-5.99],12):null;
+const map=typeof L!=='undefined'?L.map('map',{rotate:true,rotateControl:false,dragRotate:false,touchRotate:false,shiftKeyRotate:false,zoomControl:false,zoomSnap:0,zoomAnimation:false,fadeAnimation:false,markerZoomAnimation:false}).setView([37.39,-5.99],12):null;
 if(map){
- L.control.zoom({position:'bottomright',zoomInTitle:'Acercar mapa',zoomOutTitle:'Alejar mapa'}).addTo(map);
- const MetreScale=L.Control.Scale.extend({_updateMetric(maxMetres){const metres=this._getRoundNum(maxMetres);this._updateScale(this._mScale,metres.toLocaleString('es')+' m',metres/maxMetres);}});
+ const MetricZoom=L.Control.Zoom.extend({_zoomIn(){changeMetricZoom(this._map,-10);},_zoomOut(){changeMetricZoom(this._map,10);}});
+ new MetricZoom({position:'bottomright',zoomInTitle:'Acercar 10 m',zoomOutTitle:'Alejar 10 m'}).addTo(map);
+ const MetreScale=L.Control.Scale.extend({_updateMetric(maxMetres){const metres=roundedScaleMetres(maxMetres);this._updateScale(this._mScale,metres.toLocaleString('es')+' m',metres/maxMetres);}});
  const scale=new MetreScale({position:'bottomleft',imperial:false,maxWidth:110}).addTo(map);scale.getContainer().setAttribute('aria-label','Escala del mapa en metros');
  background=L.tileLayer(mapTileUrl(initialMapType),{maxZoom:19,maxNativeZoom:18,keepBuffer:1,updateWhenIdle:true,crossOrigin:true,attribution:'Mapa: <a href="https://www.ign.es/">IGN · CC BY 4.0</a>'});
  const notice=document.createElement('p');notice.className='hint';notice.setAttribute('role','status');notice.hidden=true;$('map').after(notice);
  background.on('tileerror',()=>{notice.hidden=false;notice.textContent='No se puede cargar parte del mapa de fondo. El recorrido, las paradas y las descargas GPX siguen disponibles.';});
  background.on('loading',()=>{notice.hidden=true;});let mapStatusTimer; background.on('load',()=>{clearTimeout(mapStatusTimer);mapStatusTimer=setTimeout(()=>updateOfflineStatus(),600);});background.addTo(map);
 }else $('map').textContent='No se ha podido cargar el mapa. Puedes seguir descargando los GPX.';
+function roundedScaleMetres(metres){return Math.max(10,Math.round(metres/10)*10);}
+function scaleDistanceMetres(map){const y=map.getSize().y/2;return map.distance(map.containerPointToLatLng([0,y]),map.containerPointToLatLng([110,y]));}
+function changeMetricZoom(map,delta){const distance=scaleDistanceMetres(map);if(!Number.isFinite(distance)||distance<=0)return;const target=Math.max(10,roundedScaleMetres(distance)+delta),zoom=map.getZoom()+Math.log2(distance/target);map.setZoom(Math.max(map.getMinZoom(),Math.min(map.getMaxZoom(),zoom)),{animate:false});}
 function updateStopMarkerSizes(){if(!map)return;const radius=$('gpsDetail').dataset.navigating==='true'&&map.getZoom()>=16?8:5;if(radius===stopMarkerRadius)return;stopMarkerRadius=radius;for(const marker of stopMarkers){marker.setRadius(radius);marker.setStyle({weight:radius===8?2.5:2});}}
 if(map)map.on('zoomend',updateStopMarkerSizes);
 function renderList(){const q=$('search').value.toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'');$('lines').replaceChildren();const filtered=groups.filter(g=>(!savedOnly||savedLines.has(g.id))&&(g.id+' '+g.name+' '+g.items.map(title).join(' ')).toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(q));$('count').textContent=filtered.length;for(const g of filtered){const b=document.createElement('button');b.className='line'+(g.id===selected?' active':'');b.setAttribute('aria-pressed',String(g.id===selected));const pill=document.createElement('span');pill.className='pill';pill.textContent=g.id;const col=g.items[0].attributes.Color;applyLineColors(pill,col);const text=document.createElement('span'),name=document.createElement('strong');name.textContent=g.name;text.append(name);b.append(pill,text);b.onclick=()=>choose(g.id,true);$('lines').append(b);}if(!filtered.length){const p=document.createElement('p');p.className='empty';p.textContent='No hay líneas que coincidan con tu búsqueda.';$('lines').append(p);}}
@@ -27,9 +31,10 @@ function selectableRoutes(group){
  for(const f of [...group.items].sort((a,b)=>Number(a.attributes.Ruta)-Number(b.attributes.Ruta))){const dest=String(f.attributes.DestinoRuta||f.stops?.at(-1)?.attributes.Nodo||f.attributes.NombreRuta).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[.\s]+/g,' ').trim().toUpperCase();if(!destinations.has(dest))destinations.set(dest,f);}
  return [...destinations.values()];
 }
+async function useSavedMapForLine(id){if(navigator.onLine!==false)return;try{const packs=await BusOffline.savedMapPacks(id);if(selected!==id||!packs.length||packs.some(p=>p.type===readMapType()))return;$('mapType').value=packs[0].type;$('mapType').dispatchEvent(new Event('change'));}catch{}}
 function choose(id,navigate=false){if(routeNavigator.isActive())routeNavigator.exit();selected=id;const g=groups.find(g=>g.id===id);$('name').textContent=g.name;$('badge').textContent=g.id;setBadgeColor(g.items[0].attributes.Color);$('variant').replaceChildren();selectableRoutes(g).forEach((f,i)=>{const o=document.createElement('option');o.value=i;o.textContent=f.attributes.NombreRuta||f.attributes.DestinoRuta;$('variant').append(o)});$('variant').disabled=false;$('badge').hidden=false;$('senseBar').hidden=false;renderList();show();closeMenus(true);if(navigate)routeNavigator.start();}
 function show(){clearGpxDownloads();const g=groups.find(g=>g.id===selected);current=selectableRoutes(g)[Number($('variant').value)];if(map){if(routeLayer)map.removeLayer(routeLayer);stopMarkers=[];stopMarkerRadius=null;routeLayer=L.featureGroup().addTo(map);for(const path of current.geometry.paths){const pts=path.map(c=>[c[1],c[0]]);L.polyline(pts,{color:'#315e46',weight:5,opacity:.9}).addTo(routeLayer);L.circleMarker(pts[0],{radius:6,color:'#fff',weight:2,fillColor:'#2d684d',fillOpacity:1}).bindTooltip('Inicio del segmento').addTo(routeLayer);L.circleMarker(pts.at(-1),{radius:6,color:'#fff',weight:2,fillColor:'#b35c37',fillOpacity:1}).bindTooltip('Final del segmento').addTo(routeLayer);}for(const [i,s] of (current.stops||[]).entries()){const label=document.createElement('span');label.textContent=(i+1)+'. '+s.attributes.Nombre+' (parada '+s.attributes.Nodo+')';stopMarkers.push(L.circleMarker([s.geometry.y,s.geometry.x],{radius:5,color:'#244b3b',weight:2,fillColor:'#e2f3a2',fillOpacity:1}).bindTooltip(label).addTo(routeLayer));}
-map.fitBounds(routeLayer.getBounds(),{paddingTopLeft:[24,140],paddingBottomRight:[24,38]});}$('stopList').replaceChildren();for(const s of current.stops||[]){const li=document.createElement('li');li.textContent=s.attributes.Nombre+' · parada '+s.attributes.Nodo;$('stopList').append(li);}$('stopCount').textContent=(current.stops||[]).length+' paradas en este recorrido';$('stats').textContent=distance(current).toLocaleString('es',{maximumFractionDigits:1})+' km · '+current.geometry.paths.reduce((n,p)=>n+p.length,0)+' puntos · '+(current.stops||[]).length+' paradas';$('download').disabled=false;$('saveOffline').disabled=false;$('forgetOffline').hidden=!savedLines.has(selected);routeNavigator.routeChanged();updateStopMarkerSizes();}
+map.fitBounds(routeLayer.getBounds(),{paddingTopLeft:[24,140],paddingBottomRight:[24,38]});}$('stopList').replaceChildren();for(const s of current.stops||[]){const li=document.createElement('li');li.textContent=s.attributes.Nombre+' · parada '+s.attributes.Nodo;$('stopList').append(li);}$('stopCount').textContent=(current.stops||[]).length+' paradas en este recorrido';$('stats').textContent=distance(current).toLocaleString('es',{maximumFractionDigits:1})+' km · '+current.geometry.paths.reduce((n,p)=>n+p.length,0)+' puntos · '+(current.stops||[]).length+' paradas';$('download').disabled=false;$('saveOffline').disabled=false;$('forgetOffline').hidden=!savedLines.has(selected);routeNavigator.routeChanged();updateStopMarkerSizes();useSavedMapForLine(selected);}
 let gpxDownloadUrls=[];
 function clearGpxDownloads(){for(const url of gpxDownloadUrls)setTimeout(()=>URL.revokeObjectURL(url),30000);gpxDownloadUrls=[];$('gpxFiles').replaceChildren();$('gpxFiles').hidden=true;$('downloadStatus').hidden=true;$('downloadStatus').textContent='';}
 function lineGpxRoutes(group,route){const routes=selectableRoutes(group),variant=routes.filter(f=>f.attributes.Sublinea===route?.attributes.Sublinea);return variant.length?variant:routes;}
@@ -51,14 +56,19 @@ async function load(refresh=false){
   catch{$('dataStatus').dataset.state='error';$('status').textContent='No se pueden cargar los datos. Comprueba la conexión y pulsa Actualizar.';$('refresh').disabled=false;return;}
  }
  if(state==='cached'&&savedLines.size){const ids=new Set(savedLines.keys());data={...data,features:[...data.features.filter(f=>!ids.has(label(f))),...[...savedLines.values()].flatMap(line=>line.items)]};}
- if(routeNavigator.isActive()){$('dataStatus').dataset.state=state;$('status').textContent='Datos disponibles para la próxima selección. Tu navegación continúa con el recorrido actual.';$('refresh').disabled=false;return;}
+ if(routeNavigator.isActive()&&current){$('dataStatus').dataset.state=state;$('status').textContent='Datos disponibles para la próxima selección. Tu navegación continúa con el recorrido actual.';$('refresh').disabled=false;return;}
  features=validFeatures(data);const index=new Map;for(const f of features){const id=label(f);if(!index.has(id))index.set(id,{id,name:f.attributes.NombreLinea||id,items:[]});index.get(id).items.push(f);}groups=[...index.values()].sort((a,b)=>a.id.localeCompare(b.id,'es',{numeric:true}));$('dataStatus').dataset.state=state;$('status').textContent=groups.length+' líneas · '+features.length+' recorridos · '+message;if(index.has(selected))choose(selected);else{renderList();routeNavigator.routeChanged();}$('refresh').disabled=false;}
 const routeNavigator=createRouteNavigator(map,()=>current,updateStopMarkerSizes);
 $('search').oninput=renderList;$('variant').onchange=()=>{if(routeNavigator.isActive())routeNavigator.exit();show();routeNavigator.start();};$('refresh').onclick=()=>load(true);$('download').onclick=downloadLineGpx;startOfflineApp();
 
+let mapDownload=null,mapSaveProgress='';
 async function updateOfflineStatus(note=''){
- const info=await BusOffline.workerInfo();const amount=savedLines.size;let text=(navigator.onLine===false?'Sin conexión · ':'')+amount+(amount===1?' línea guardada · ':' líneas guardadas · ')+(info.ready?'Aplicación disponible sin Internet.':'Uso sin conexión no disponible.');
- text+=' '+info.tiles+' zonas de mapa guardadas (máximo '+(info.limit||384)+').';if(note)text=note+' '+text;$('offlineStatus').textContent=text;
+ const info=await BusOffline.workerInfo(),amount=savedLines.size;
+ let text=(navigator.onLine===false?'Sin conexión · ':'')+amount+(amount===1?' línea guardada. ':' líneas guardadas. ')+(info.ready?'Aplicación disponible sin Internet.':'Uso sin conexión no disponible.');
+ text+=' Mapas de líneas: '+(info.packTiles||0)+' fragmentos guardados.';
+ if(selected){try{const packs=await BusOffline.savedMapPacks(selected);if(packs.length)text+=' Línea '+selected+': '+packs.map(p=>({street:'callejero',aerial:'vista aérea',topographic:'topográfico'}[p.type])).join(', ')+'.';}catch{}}
+ if(mapSaveProgress)text=mapSaveProgress+' '+text;else if(note)text=note+' '+text;
+ $('offlineStatus').textContent=text;
 }
 async function startOfflineApp(){
  try{savedLines=new Map((await BusOffline.savedLines()).map(line=>[line.id,line]));}catch{$('offlineStatus').textContent='El almacenamiento local no está disponible. No cierres la app si vas a perder conexión.';}
@@ -67,13 +77,22 @@ async function startOfflineApp(){
  if(navigator.onLine!==false)load(true);
 }
 $('saveOffline').onclick=async()=>{
- const button=$('saveOffline');button.disabled=true;const group=groups.find(g=>g.id===selected);if(!group){button.disabled=false;return;}
- const persistence=BusOffline.persistence();
- try{const line={id:group.id,name:group.name,items:group.items,savedAt:new Date().toISOString(),files:selectableRoutes(group).map(f=>({name:routeFilename(f,features)+'.gpx',content:gpx([f])}))};await BusOffline.saveLine(line);savedLines.set(line.id,line);$('forgetOffline').hidden=false;const persistent=await persistence;await updateOfflineStatus('Línea '+line.id+' guardada con todos sus sentidos, paradas y GPX.'+(persistent?' Almacenamiento persistente concedido.':' iOS puede eliminar copias si necesita espacio.'));}catch{await updateOfflineStatus('No se ha podido guardar la línea. Revisa el espacio del dispositivo; puedes borrar la caché de mapas y reintentarlo.');}finally{button.disabled=false;}
+ if(mapDownload){mapDownload.abort();return;}
+ const group=groups.find(g=>g.id===selected);if(!group)return;
+ const button=$('saveOffline'),type=readMapType(),mapName={street:'callejero',aerial:'vista aérea',topographic:'topográfico'}[type],controller=new AbortController();
+ mapDownload=controller;button.disabled=false;button.textContent='Cancelar descarga de mapas';let lineSaved=false;const persistence=BusOffline.persistence();
+ try{
+  const items=selectableRoutes(group),line={id:group.id,name:group.name,items:group.items,savedAt:new Date().toISOString(),files:items.map(f=>({name:routeFilename(f,features)+'.gpx',content:gpx([f])}))};
+  await BusOffline.saveLine(line);lineSaved=true;savedLines.set(line.id,line);$('forgetOffline').hidden=false;
+  await BusOffline.saveMapPack(group.id,type,items,mapTileUrl(type),{signal:controller.signal,onProgress:progress=>{mapSaveProgress='Línea '+group.id+' · '+mapName+': '+progress.completed+'/'+progress.total+' mapas. Mantén la app abierta hasta que termine.';$('offlineStatus').textContent=mapSaveProgress;}});
+  mapSaveProgress='';const persistent=await persistence;
+  await updateOfflineStatus('Línea '+group.id+' y mapa '+mapName+' guardados alrededor de ambos sentidos.'+(persistent?'':' El navegador puede eliminar las copias si necesita espacio.'));
+ }catch(error){mapSaveProgress='';await updateOfflineStatus((lineSaved?'La línea está guardada, pero los mapas no están completos. ':'No se ha podido guardar la línea. ')+(error?.message||'Comprueba la conexión y el espacio disponible.')+' Vuelve a guardar para continuar sin repetir las descargas ya completadas.');}
+ finally{mapDownload=null;mapSaveProgress='';button.disabled=false;button.textContent='Guardar línea y mapas';}
 };
 $('savedOnly').onclick=()=>{savedOnly=!savedOnly;$('savedOnly').setAttribute('aria-pressed',String(savedOnly));$('savedOnly').textContent=savedOnly?'Ver todas las líneas':'Ver guardadas';renderList();openMenu('lines');};
 $('forgetOffline').onclick=async()=>{try{await BusOffline.removeLine(selected);savedLines.delete(selected);$('forgetOffline').hidden=true;renderList();await updateOfflineStatus('Copia de la línea eliminada.');}catch{await updateOfflineStatus('No se ha podido eliminar la copia.');}};
-$('clearMaps').onclick=async()=>{try{await BusOffline.clearMaps();await updateOfflineStatus('Mapas eliminados; tus líneas y paradas siguen guardadas.');}catch{await updateOfflineStatus('No se ha podido vaciar la caché de mapas.');}};
+$('clearMaps').onclick=async()=>{mapDownload?.abort();try{await BusOffline.clearMaps();await updateOfflineStatus('Mapas eliminados; tus líneas y paradas siguen guardadas.');}catch{await updateOfflineStatus('No se ha podido vaciar la caché de mapas.');}};
 window.addEventListener('online',()=>updateOfflineStatus());window.addEventListener('offline',()=>updateOfflineStatus());window.addEventListener('bus-offline-change',()=>updateOfflineStatus());
 
 function showOptionsView(view='main',focus=true){const previous=$('optionsPanel').dataset.view;$('optionsMain').hidden=view!=='main';$('settingsView').hidden=view!=='settings';$('offlineView').hidden=view!=='offline';$('gpxView').hidden=view!=='gpx';$('infoView').hidden=view!=='info';$('optionsBack').hidden=view==='main';const title={main:'Opciones',settings:'Ajustes',offline:'Líneas sin conexión',gpx:'Archivos GPX',info:'Información'}[view];$('optionsTitle').textContent=title;$('optionsPanel').setAttribute('aria-label',title);$('optionsPanel').dataset.view=view;$('openSettings').setAttribute('aria-expanded',String(view==='settings'));$('openOffline').setAttribute('aria-expanded',String(view==='offline'));$('openGpx').setAttribute('aria-expanded',String(view==='gpx'));$('openInfo').setAttribute('aria-expanded',String(view==='info'));if(focus)$(view!=='main'?'optionsBack':previous==='offline'?'openOffline':previous==='gpx'?'openGpx':previous==='info'?'openInfo':'openSettings').focus({preventScroll:true});}
@@ -82,7 +101,7 @@ function openMenu(which){const panel=$(which==='lines'?'linePanel':'optionsPanel
 $('selectLine').onclick=()=>openMenu('lines');$('optionsToggle').onclick=()=>openMenu('options');$('closeLines').onclick=()=>closeMenus(true);$('closeOptions').onclick=()=>closeMenus(true);$('openSettings').onclick=()=>showOptionsView('settings');$('optionsBack').onclick=()=>showOptionsView('main');$('openOffline').onclick=()=>showOptionsView('offline');$('openGpx').onclick=()=>showOptionsView('gpx');$('openInfo').onclick=()=>showOptionsView('info');
 document.addEventListener('pointerdown',event=>{if(event.target.closest('#map'))closeMenus();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&(!$('linePanel').hidden||!$('optionsPanel').hidden)){event.preventDefault();if($('optionsPanel').dataset.view!=='main')showOptionsView('main');else closeMenus(true);}});
-$('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&!['closeOptions','savedOnly','openSettings','openOffline','openGpx','openInfo','optionsBack','download'].includes(button.id))closeMenus(true);});
+$('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&!['closeOptions','savedOnly','openSettings','openOffline','openGpx','openInfo','optionsBack','download','saveOffline'].includes(button.id))closeMenus(true);});
 
 function initMapViewport(map){
  const viewport=window.visualViewport,style=document.documentElement.style;let frame=null,lastWidth=0,lastHeight=0;
@@ -127,3 +146,5 @@ function initMapType(layer,initialType='street'){
  return ()=>{select.removeEventListener('change',change);window.removeEventListener('storage',stored);};
 }
 initMapType(background,initialMapType);
+// Start location independently of selecting or downloading a bus line.
+routeNavigator.start();
