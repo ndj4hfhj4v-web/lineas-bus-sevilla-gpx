@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const app=fs.readFileSync('work/tussam/dist/app.js','utf8'),source=app.slice(app.indexOf("let mapDownload=null"),app.indexOf("$('savedOnly').onclick="));
+const app=fs.readFileSync('src/app.js','utf8'),source=app.slice(app.indexOf("let mapDownload=null"),app.indexOf("$('savedOnly').onclick="));
 const elements={saveOffline:{disabled:false,textContent:''},forgetOffline:{hidden:true},offlineStatus:{textContent:''}},savedLines=new Map();
 const items=[{attributes:{Ruta:1}},{attributes:{Ruta:2}}];let saved,signalReceived;
 const bus={persistence:async()=>false,saveLine:async line=>{saved=line;},workerInfo:async()=>({ready:true,packTiles:0}),savedMapPacks:async()=>[],saveMapPack:async()=>{throw Error('Sin conexión');}};
