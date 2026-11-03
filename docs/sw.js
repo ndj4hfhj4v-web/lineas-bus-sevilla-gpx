@@ -1,5 +1,5 @@
 /* App shell version is replaced by the build. Route/GPX data lives in IndexedDB. */
-const SHELL='bus-sevilla-shell-9deb2fc1944527d4',TILES='bus-sevilla-tiles-v1';
+const SHELL='bus-sevilla-shell-7c1a566d095cfcb7',TILES='bus-sevilla-tiles-v1';
 const BASE=new URL('./',self.location.href),INDEX=new URL('index.html',BASE).href;
 const ASSETS=['index.html','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png'];
 const MAX_TILES=384,MAX_TILE_BYTES=512*1024;
