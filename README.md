@@ -89,3 +89,7 @@ Referencias: [licencia del IGN](https://www.ign.es/resources/licencia/Condicione
 En Opciones → Instalar aplicación se muestran las instrucciones correspondientes al dispositivo. Chrome y Edge muestran el botón de instalación cuando el navegador ofrece esa función. En iPhone/iPad, abre la web en Safari, usa Compartir → Añadir a pantalla de inicio y activa Abrir como app web si aparece. Abre el icono instalado y guarda las líneas y sus mapas desde ahí. No se garantiza navegación GPS con la pantalla bloqueada.
 
 Se incluyen un icono Apple opaco de 180 × 180 y un icono maskable de 512 × 512 con margen seguro para Android. Ambos se precargan en el Service Worker. Una actualización del código cambia la versión de la caché de la aplicación y conserva las cachés de mapas y los datos de IndexedDB.
+
+## Mantener la pantalla encendida
+
+Durante la navegación se solicita Screen Wake Lock. Se recupera al volver a la aplicación y después de una liberación del sistema; los rechazos se reintentan con una espera de 30 segundos o mediante una interacción del usuario. No se solicita en segundo plano ni después de detener el GPS. En Opciones → Ajustes se indica si está activo, pendiente o no disponible, con Reintentar cuando el sistema lo rechaza. Las pruebas cubren las solicitudes simultáneas, la suspensión, la recuperación, los rechazos y las respuestas tardías. La comprobación física en iPhone sigue siendo necesaria.

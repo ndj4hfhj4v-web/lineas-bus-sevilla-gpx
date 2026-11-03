@@ -125,3 +125,5 @@ html:has(body.map-app){height:100%;overflow:hidden;overscroll-behavior:none;-web
 
 /* Embedded logo is available immediately, including offline. */
 .app-splash{position:fixed;inset:0;z-index:2147483647;isolation:isolate;display:grid;place-items:center;background:#244b3b}.app-splash img,.app-splash svg{display:block;width:72vmin;max-width:420px;height:auto;aspect-ratio:1;object-fit:contain}.app-splash[hidden]{display:none!important}
+
+.screen-awake-settings{margin-top:18px}.screen-awake-settings h2{font-size:14px;letter-spacing:0;margin-bottom:8px}.screen-awake-settings p{font-size:14px;line-height:1.5;margin:0 0 10px}.screen-awake-settings button{min-height:44px}

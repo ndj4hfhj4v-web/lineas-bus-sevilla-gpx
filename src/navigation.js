@@ -40,10 +40,45 @@ function createGpsCamera(map,onFrame=()=>{}){
  }
  return {follow,cancel,reset(){cancel();point=bearing=null;}};
 }
+// Reacquire a system-released screen lock without piling up requests or retrying rapidly.
+function createScreenWakeLock(shouldHold,onChange=()=>{},environment={window,document,navigator}){
+ const {window:win,document:doc,navigator:nav}=environment;
+ let lock=null,pending=null,epoch=0,retryTimer=null,nextAttempt=0,lastAttempt=-Infinity,destroyed=false;
+ const visible=()=>doc.visibilityState==='visible';
+ const wanted=()=>!destroyed&&shouldHold()&&visible();
+ const report=state=>onChange(state);
+ function clearRetry(){if(retryTimer!==null){clearTimeout(retryTimer);retryTimer=null;}}
+ function schedule(delay){if(!wanted()||retryTimer!==null)return;retryTimer=setTimeout(()=>{retryTimer=null;ensure();},delay);}
+ async function ensure(fromGesture=false){
+  if(!wanted())return;
+  if(!nav.wakeLock?.request){report('unsupported');return;}
+  if(lock&&!lock.released){report('active');return;}
+  if(pending)return;
+  const now=Date.now();
+  if(now<nextAttempt&&(!fromGesture||now-lastAttempt<1000)){schedule(Math.max(1000,nextAttempt-now));return;}
+  clearRetry();lastAttempt=now;const ticket={epoch};pending=ticket;report('requesting');
+  try{
+   const acquired=await nav.wakeLock.request('screen');
+   if(!wanted()||ticket.epoch!==epoch){await acquired.release();return;}
+   lock=acquired;nextAttempt=0;
+   acquired.addEventListener('release',()=>{if(lock!==acquired)return;lock=null;if(wanted()){report('waiting');schedule(2000);}});
+   if(acquired.released){lock=null;report('waiting');schedule(2000);}else report('active');
+  }catch{if(ticket.epoch===epoch&&wanted()){nextAttempt=Date.now()+30000;report('waiting');schedule(30000);}}
+  finally{if(pending===ticket)pending=null;if(ticket.epoch!==epoch&&wanted())Promise.resolve().then(()=>ensure());}
+ }
+ function pause(){epoch++;clearRetry();nextAttempt=0;const previous=lock;lock=null;if(previous)Promise.resolve(previous.release()).catch(()=>{});report(shouldHold()?'paused':'idle');}
+ function visibility(){if(visible())ensure();else pause();}
+ function gesture(){ensure(true);}
+ function resume(){ensure();}
+ doc.addEventListener('visibilitychange',visibility);doc.addEventListener('pointerup',gesture,{passive:true});doc.addEventListener('keydown',gesture);
+ win.addEventListener('focus',resume);win.addEventListener('pageshow',resume);
+ return {ensure,pause,destroy(){destroyed=true;pause();doc.removeEventListener('visibilitychange',visibility);doc.removeEventListener('pointerup',gesture);doc.removeEventListener('keydown',gesture);win.removeEventListener('focus',resume);win.removeEventListener('pageshow',resume);}};
+}
+
 function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
- const el=id=>document.getElementById(id);let active=false,watch=null,generation=0,marker=null,accuracyCircle=null,last=null,following=true,timer=null,wake=null,routeKey=null;
+ const el=id=>document.getElementById(id);let active=false,watch=null,generation=0,marker=null,accuracyCircle=null,last=null,following=true,timer=null,routeKey=null;
  let approximatePending=false,approximateAttempt=0;
- let expanded=false,returnFocus=null;
+ let expanded=false,returnFocus=null,resumeNavigation=false;
  let travelHeading=null,courseAnchor=null;
  let viewPosition=null,zooming=false;
  const camera=createGpsCamera(map,p=>{if(marker)marker.setLatLng([p.lat,p.lon]);if(accuracyCircle)accuracyCircle.setLatLng([p.lat,p.lon]);orientArrow();});
@@ -73,9 +108,10 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&expanded&&el('gpsDetail').dataset.menuOpen!=='true'){event.preventDefault();collapse();}});
  function status(text,state='normal'){el('gpsStatus').textContent=text;el('gpsPanel').dataset.state=state;el('gpsPanel').hidden=!text;}
  function controls(){if(el('startGps'))el('startGps').hidden=active;el('centerGps').hidden=!active||!expanded||following||!last;el('centerGps').disabled=!last;el('centerGps').setAttribute('aria-pressed',String(following));el('gpsDetail').dataset.navigating=String(active);onStateChange(active);}
- async function keepAwake(){if(!active||document.visibilityState!=='visible'||!navigator.wakeLock||wake)return;const token=generation;try{const lock=await navigator.wakeLock.request('screen');if(!active||token!==generation){await lock.release();return;}wake=lock;lock.addEventListener('release',()=>{if(wake===lock)wake=null;});}catch{/* Screen wake lock is optional; GPS remains usable. */}}
- function releaseWake(){const old=wake;wake=null;if(old)old.release().catch(()=>{});}
- function stop(message='GPS detenido.'){camera.reset();active=false;revealOptions();generation++;if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}if(timer!==null){clearInterval(timer);timer=null;}releaseWake();last=null;travelHeading=courseAnchor=viewPosition=null;if(map){if(map.stopHeadingUp)map.stopHeadingUp();if(map.setBearing)map.setBearing(0);if(marker)map.removeLayer(marker);if(accuracyCircle)map.removeLayer(accuracyCircle);}marker=accuracyCircle=null;controls();status(message);if(!message)el('gpsPanel').hidden=true;}
+ const awake=createScreenWakeLock(()=>active,state=>{const text=el('wakeStatus'),retry=el('retryWake');if(text)text.textContent={active:'Activa durante la navegación.',requesting:'Solicitando al sistema…',waiting:'El sistema no la ha concedido. Se volverá a intentar.',unsupported:'Este navegador no permite mantener la pantalla encendida.',paused:'En pausa mientras la app no está visible.',idle:'Se activa al iniciar el GPS.'}[state];if(retry)retry.hidden=state!=='waiting';});
+ if(el('retryWake'))el('retryWake').onclick=()=>awake.ensure(true);
+ const keepAwake=()=>awake.ensure(),releaseWake=()=>awake.pause();
+ function stop(message='GPS detenido.'){resumeNavigation=false;camera.reset();active=false;revealOptions();generation++;if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}if(timer!==null){clearInterval(timer);timer=null;}releaseWake();last=null;travelHeading=courseAnchor=viewPosition=null;if(map){if(map.stopHeadingUp)map.stopHeadingUp();if(map.setBearing)map.setBearing(0);if(marker)map.removeLayer(marker);if(accuracyCircle)map.removeLayer(accuracyCircle);}marker=accuracyCircle=null;controls();status(message);if(!message)el('gpsPanel').hidden=true;}
  function requestApproximate(token){if(!active||token!==generation||approximatePending||!navigator.geolocation.getCurrentPosition)return;approximatePending=true;approximateAttempt=Date.now();
   try{navigator.geolocation.getCurrentPosition(data=>{if(!active||token!==generation)return;approximatePending=false;if(last&&Date.now()-last.time<15000&&data.coords.accuracy>last.accuracy)return;position(data,token);},error=>{if(!active||token!==generation)return;approximatePending=false;if(error.code===1){stop('Acceso a la ubicación denegado. Permite la ubicación del navegador y del sitio web en los ajustes del móvil.');el('gpsPanel').dataset.state='warning';}},{enableHighAccuracy:false,maximumAge:0,timeout:15000});}catch{approximatePending=false;}
  }
@@ -108,7 +144,8 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  if(map)map.on('zoomend',()=>{zooming=false;if(active&&following)followPosition();});
  if(map)map.on('dragstart',()=>{if(active){camera.cancel();following=false;if(map.stopHeadingUp)map.stopHeadingUp();controls();}});
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(active){if(!last||Date.now()-last.time>30000){status('Retomando el GPS. Esperando una posición reciente…','warning');requestApproximate(generation);}keepAwake();}}else{releaseWake();}});
- window.addEventListener('pagehide',()=>{if(active)stop();});
+ window.addEventListener('pagehide',()=>{const wasActive=active;if(active)stop('');resumeNavigation=wasActive;});
+ window.addEventListener('pageshow',()=>{if(resumeNavigation){resumeNavigation=false;start();}else if(active)keepAwake();});
  return {start,isActive:()=>active,exit:collapse,revealControls:revealOptions,routeChanged(){const route=getRoute();if(active&&route!==routeKey)stop('Has cambiado de recorrido.');if(el('startGps'))el('startGps').disabled=!route;},stop};
 }
-if(typeof module!=='undefined')module.exports={gpsDistance,gpsRouteDistance,gpsNearestStop,gpsBearing,gpsMotionCourse,gpsLookAheadCenter,createGpsCamera,createRouteNavigator};
+if(typeof module!=='undefined')module.exports={gpsDistance,gpsRouteDistance,gpsNearestStop,gpsBearing,gpsMotionCourse,gpsLookAheadCenter,createGpsCamera,createScreenWakeLock,createRouteNavigator};
