@@ -876,12 +876,20 @@ function gpsMotionCourse(anchor,fix){
  if(gpsDistance(a,b)<threshold)return {heading:null,anchor};
  return {heading:gpsBearing(a,b),anchor:fix};
 }
+// Position the vehicle 70% down the visible map, leaving more road ahead.
+function gpsLookAheadCenter(map,position,bearing,zoom){
+ if(!map.getSize||!map.project||!map.unproject)return [position.lat,position.lon];
+ const height=map.getSize().y;if(!Number.isFinite(height)||height<=0)return [position.lat,position.lon];
+ const point=map.project([position.lat,position.lon],zoom),distance=height*.2,angle=(bearing??0)*Math.PI/180;
+ const center=map.unproject({x:point.x-Math.sin(angle)*distance,y:point.y-Math.cos(angle)*distance},zoom);
+ return [center.lat,center.lng];
+}
 // One camera clock moves and turns the map without competing CSS pan animations.
 function createGpsCamera(map,onFrame=()=>{}){
  let frame=null,point=null,bearing=null;
  const raf=typeof requestAnimationFrame==='function'?requestAnimationFrame:null;
  function cancel(){if(frame!==null&&typeof cancelAnimationFrame==='function')cancelAnimationFrame(frame);frame=null;}
- function draw(p,b,snap=false){if(b!==null&&map.setBearing)map.setBearing(b);if(snap||!map.panTo)map.setView([p.lat,p.lon],snap?Math.max(16,map.getZoom()):map.getZoom(),{animate:false});else map.panTo([p.lat,p.lon],{animate:false});point=p;bearing=b;onFrame(p);}
+ function draw(p,b,snap=false){if(b!==null&&map.setBearing)map.setBearing(b);const zoom=snap?Math.max(16,map.getZoom()):map.getZoom(),center=gpsLookAheadCenter(map,p,b,zoom);if(snap||!map.panTo)map.setView(center,zoom,{animate:false});else map.panTo(center,{animate:false});point=p;bearing=b;onFrame(p);}
  function follow(fix,heading,reset=false){
   cancel();if(map.stopHeadingUp)map.stopHeadingUp();
   const target={lat:fix.lat,lon:fix.lon},targetBearing=heading===null?(bearing??(map.getBearing?map.getBearing():null)):(360-heading)%360;
@@ -959,6 +967,7 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  }
  if(el('startGps'))el('startGps').onclick=start;el('centerGps').onclick=()=>{following=true;viewPosition=null;followPosition();controls();};
  if(map)map.on('rotate',orientArrow);
+ if(map)map.on('resize',()=>{if(active&&following)followPosition();});
  if(map)map.on('zoomstart',()=>{zooming=true;camera.cancel();});
  if(map)map.on('zoomend',()=>{zooming=false;if(active&&following)followPosition();});
  if(map)map.on('dragstart',()=>{if(active){camera.cancel();following=false;if(map.stopHeadingUp)map.stopHeadingUp();controls();}});
@@ -966,7 +975,7 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  window.addEventListener('pagehide',()=>{if(active)stop();});
  return {start,isActive:()=>active,exit:collapse,revealControls:revealOptions,routeChanged(){const route=getRoute();if(active&&route!==routeKey)stop('Has cambiado de recorrido.');if(el('startGps'))el('startGps').disabled=!route;},stop};
 }
-if(typeof module!=='undefined')module.exports={gpsDistance,gpsRouteDistance,gpsNearestStop,gpsBearing,gpsMotionCourse,createGpsCamera,createRouteNavigator};
+if(typeof module!=='undefined')module.exports={gpsDistance,gpsRouteDistance,gpsNearestStop,gpsBearing,gpsMotionCourse,gpsLookAheadCenter,createGpsCamera,createRouteNavigator};
 </script><script>const $=id=>document.getElementById(id);let features=[],groups=[],selected='',current=null,routeLayer=null,stopMarkers=[],stopMarkerRadius=null,background=null,savedOnly=false,savedLines=new Map();
 const MAP_BACKGROUNDS={street:{service:'ign-base',layer:'IGNBaseTodo'},aerial:{service:'pnoa-ma',layer:'OI.OrthoimageCoverage'},topographic:{service:'mapa-raster',layer:'MTN'}};
 function validMapType(value){return ['street','aerial','topographic'].includes(value)?value:'street';}
