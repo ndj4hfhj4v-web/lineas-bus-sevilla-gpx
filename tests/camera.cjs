@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-const {createGpsCamera}=require('../src/navigation.js');
+const {createGpsCamera,gpsLookAheadCenter}=require('../src/navigation.js');
 let next=0,clock=0;const frames=new Map();
 global.requestAnimationFrame=fn=>{frames.set(++next,fn);return next;};
 global.cancelAnimationFrame=id=>frames.delete(id);
@@ -20,3 +20,12 @@ camera.follow({lat:37.45,lon:-5.99},90);assert.equal(frames.size,0,'Signal recov
 camera.follow({lat:37.4501,lon:-5.99},90);camera.reset();advance(1000);assert.equal(frames.size,0,'Stopping removes pending frames');assert.equal(map.animated,0,'No CSS pan competes with rotation');
 delete global.requestAnimationFrame;delete global.cancelAnimationFrame;
 console.log('Correcto: cámara coordinada, giro corto, zoom manual, cancelación, recuperación y ausencia de animaciones en conflicto.');
+
+// Check the actual screen offset for rotated maps, zoom changes and both orientations.
+for(const [width,height] of [[390,844],[844,390]])for(const zoom of [12,16,19])for(const bearing of [0,45,90,180,270,359]){
+ const scale=2**zoom,project=([lat,lon])=>({x:lon*scale,y:-lat*scale}),geo={getSize:()=>({x:width,y:height}),project,unproject:p=>({lat:-p.y/scale,lng:p.x/scale})};
+ const fix={lat:37.39,lon:-5.99},center=gpsLookAheadCenter(geo,fix,bearing,zoom),p=project([fix.lat,fix.lon]),c=project(center),angle=bearing*Math.PI/180,dx=p.x-c.x,dy=p.y-c.y;
+ const x=width/2+dx*Math.cos(angle)-dy*Math.sin(angle),y=height/2+dx*Math.sin(angle)+dy*Math.cos(angle);
+ assert(Math.abs(x-width/2)<.00001,'Vehicle remains horizontally centered');assert(Math.abs(y-height*.7)<.00001,'Vehicle remains 70% down the map throughout a turn');
+}
+console.log('Correcto: más espacio por delante en todos los rumbos, zooms y orientaciones de pantalla.');
