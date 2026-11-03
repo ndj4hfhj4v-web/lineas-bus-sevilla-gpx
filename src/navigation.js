@@ -24,7 +24,7 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  function clearChromeTimer(){if(chromeTimer!==null){clearTimeout(chromeTimer);chromeTimer=null;}}
  function revealOptions(){
   clearChromeTimer();el('gpsDetail').dataset.optionsHidden='false';
-  if(expanded&&active&&el('gpsDetail').dataset.menuOpen!=='true')chromeTimer=setTimeout(()=>{chromeTimer=null;if(expanded&&active){el('gpsDetail').dataset.optionsHidden='true';if(map.closePopup)map.closePopup();if(map.closeTooltip)map.closeTooltip();}},5000);
+  if(expanded&&active&&el('gpsDetail').dataset.menuOpen!=='true')chromeTimer=setTimeout(()=>{chromeTimer=null;if(expanded&&active){el('gpsDetail').dataset.optionsHidden='true';if(map.closePopup)map.closePopup();if(map.eachLayer)map.eachLayer(layer=>{if(layer.closeTooltip)layer.closeTooltip();});}},5000);
  }
  el('gpsDetail').addEventListener('pointerdown',revealOptions,{passive:true,capture:true});
  el('gpsDetail').addEventListener('pointerup',revealOptions,{passive:true,capture:true});
