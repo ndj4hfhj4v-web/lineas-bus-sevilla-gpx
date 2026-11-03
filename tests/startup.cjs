@@ -1,5 +1,6 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('src/startup.js','utf8');
+const css=fs.readFileSync('src/style.css','utf8'),splashZ=Number(css.match(/\.app-splash\{[^}]*z-index:(\d+)/)[1]),expandedZ=Number(css.match(/#gpsDetail\[data-expanded="true"\]\{[^}]*z-index:(\d+)/)[1]);assert(splashZ>expandedZ,'The startup logo must stay above the GPS map even when navigation expands on boot');
 function setup(inline=false){let clock=0;const frames=[],timers=new Map(),events={},docEvents={};let next=0;
  const splash={hidden:false,querySelector:()=>inline?null:({decode:()=>Promise.resolve()})},doc={visibilityState:'visible',getElementById:()=>splash,addEventListener:(k,f)=>docEvents[k]=f},win={matchMedia:()=>({matches:true}),requestAnimationFrame:f=>frames.push(f),setTimeout:(f,delay)=>{const id=++next;timers.set(id,{f,at:clock+delay});return id;},clearTimeout:id=>timers.delete(id),addEventListener:(k,f)=>events[k]=f};
  vm.runInNewContext(source,{window:win,document:doc,navigator:{},Date:{now:()=>clock}});
