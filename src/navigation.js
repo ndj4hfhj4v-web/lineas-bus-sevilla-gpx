@@ -75,6 +75,23 @@ function createScreenWakeLock(shouldHold,onChange=()=>{},environment={window,doc
  return {ensure,pause,destroy(){destroyed=true;pause();doc.removeEventListener('visibilitychange',visibility);doc.removeEventListener('pointerup',gesture);doc.removeEventListener('keydown',gesture);win.removeEventListener('focus',resume);win.removeEventListener('pageshow',resume);}};
 }
 
+async function runGpsDiagnostic(env={window,navigator,setTimeout,clearTimeout,now:()=>Date.now()}){
+ const nav=env.navigator,result={secure:!!env.window.isSecureContext,available:!!nav.geolocation,permission:'desconocido',tests:[]};
+ if(!result.secure||!result.available)return result;
+ async function bounded(start,wait,fallback){return new Promise(resolve=>{let finished=false;const timer=env.setTimeout(()=>finish(fallback),wait);function finish(value){if(finished)return;finished=true;env.clearTimeout(timer);resolve(value);}try{start(finish);}catch(error){finish({status:'exception',message:String(error?.message||error).slice(0,180)});}});}
+ if(nav.permissions?.query){const permission=await bounded(done=>nav.permissions.query({name:'geolocation'}).then(p=>done({state:p.state}),()=>done({})),1500,{});result.permission=permission.state||'desconocido';}
+ for(const high of [false,true]){
+  const test=await bounded(done=>nav.geolocation.getCurrentPosition(position=>{const c=position?.coords;const valid=c&&Number.isFinite(c.latitude)&&Number.isFinite(c.longitude)&&Math.abs(c.latitude)<=90&&Math.abs(c.longitude)<=180&&Number.isFinite(c.accuracy)&&c.accuracy>=0;done({status:valid?'received':'invalid',accuracy:valid?Math.round(c.accuracy):null,age:Number.isFinite(position?.timestamp)?Math.round((env.now()-position.timestamp)/1000):null});},error=>done({status:'error',code:error.code,message:String(error.message||'').slice(0,180)}),{enableHighAccuracy:high,maximumAge:0,timeout:15000}),20000,{status:'no-callback'});
+  result.tests.push({mode:high?'precisa':'aproximada',...test});if(test.code===1)break;
+ }
+ return result;
+}
+function gpsDiagnosticText(result){
+ const lines=['Diagnóstico GPS · versión 2026-11-03.3','Conexión segura: '+(result.secure?'sí':'no'),'API de ubicación: '+(result.available?'disponible':'no disponible'),'Permiso web: '+({granted:'concedido',denied:'denegado',prompt:'pendiente'}[result.permission]||'no comprobable')];
+ for(const test of result.tests){let text=test.status==='received'?'posición recibida; precisión '+test.accuracy+' m; antigüedad '+(test.age??'desconocida')+' s':test.status==='invalid'?'el navegador devolvió datos no válidos':test.status==='no-callback'?'el navegador no respondió en 20 s':test.status==='exception'?'excepción: '+test.message:({1:'permiso denegado',2:'posición no disponible',3:'tiempo agotado'}[test.code]||'error')+' (código '+test.code+')'+(test.message?' · '+test.message:'');lines.push('Solicitud '+test.mode+': '+text);}
+ return lines.join('\n');
+}
+
 function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  const el=id=>document.getElementById(id);let active=false,watch=null,generation=0,marker=null,accuracyCircle=null,last=null,following=true,timer=null,routeKey=null;
  let approximatePending=false,approximateAttempt=0,approximateSerial=0,watchSerial=0,watchStarted=0;
@@ -132,6 +149,7 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  }
  function armWatch(token){const serial=++watchSerial;if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null;}watchStarted=Date.now();watch=navigator.geolocation.watchPosition(data=>{if(serial===watchSerial)position(data,token);},error=>{if(!active||token!==generation||serial!==watchSerial)return;if(error.code===1){stop('Acceso a la ubicación denegado. Puedes permitirlo desde los ajustes del sitio en tu navegador.');el('gpsPanel').dataset.state='warning';}else{if(last&&Date.now()-last.time<=30000)return;status(error.code===3?'Todavía no hay una posición reciente. Activa la ubicación precisa del navegador, prueba al aire libre y mantén esta pantalla abierta.':'El móvil no está proporcionando ubicación. Revisa su localización y el permiso del navegador; seguimos intentando.','warning');if(Date.now()-approximateAttempt>20000)requestApproximate(token);}},{enableHighAccuracy:true,maximumAge:0,timeout:45000});}
  function recoverGps(){if(!active||document.visibilityState==='hidden')return;if((!last||Date.now()-last.time>30000)&&Date.now()-watchStarted>=60000){try{armWatch(generation);}catch{status('No se ha podido reactivar el GPS. Pulsa Reintentar ubicación.','warning');}}}
+ if(el('gpsDiagnosticButton'))el('gpsDiagnosticButton').onclick=async()=>{const button=el('gpsDiagnosticButton'),output=el('gpsDiagnosticOutput');button.disabled=true;output.textContent='Consultando el GPS del navegador… Puede tardar hasta 40 segundos.';try{output.textContent=gpsDiagnosticText(await runGpsDiagnostic());}catch{output.textContent='No se ha podido completar la prueba del GPS.';}finally{button.disabled=false;}};
  if(el('retryGps'))el('retryGps').onclick=()=>{stop('');start();};
  function start(){if(active)return;if(!map){status('No se ha podido cargar el mapa. Recarga la página para usar el GPS.','warning');return;}if(!window.isSecureContext||!navigator.geolocation){status('Abre la web publicada con HTTPS en el navegador del móvil para usar su ubicación.','warning');return;}
   active=true;following=true;approximatePending=false;approximateAttempt=0;routeKey=getRoute();const token=++generation;expand();controls();status('Buscando tu ubicación… Permite el acceso si el navegador lo solicita. La primera posición puede tardar hasta un minuto.');
@@ -151,4 +169,4 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  window.addEventListener('pageshow',()=>{if(resumeNavigation){resumeNavigation=false;start();}else if(active)keepAwake();});
  return {start,isActive:()=>active,exit:collapse,revealControls:revealOptions,routeChanged(){const route=getRoute();if(active&&route!==routeKey)stop('Has cambiado de recorrido.');if(el('startGps'))el('startGps').disabled=!route;},stop};
 }
-if(typeof module!=='undefined')module.exports={gpsDistance,gpsRouteDistance,gpsNearestStop,gpsBearing,gpsMotionCourse,gpsLookAheadCenter,createGpsCamera,createScreenWakeLock,createRouteNavigator};
+if(typeof module!=='undefined')module.exports={gpsDistance,gpsRouteDistance,gpsNearestStop,gpsBearing,gpsMotionCourse,gpsLookAheadCenter,createGpsCamera,createScreenWakeLock,createRouteNavigator,runGpsDiagnostic,gpsDiagnosticText};
