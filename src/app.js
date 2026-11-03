@@ -4,7 +4,7 @@ function validMapType(value){return ['street','aerial','topographic'].includes(v
 function readMapType(){try{return validMapType(localStorage.getItem('bus-sevilla-map-type'));}catch{return 'street';}}
 function mapTileUrl(type){const source=MAP_BACKGROUNDS[validMapType(type)];return 'https://www.ign.es/wmts/'+source.service+'?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER='+source.layer+'&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}';}
 const initialMapType=readMapType();
-const map=typeof L!=='undefined'?L.map('map',{rotate:true,rotateControl:false,dragRotate:false,touchRotate:false,shiftKeyRotate:false,zoomControl:false}).setView([37.39,-5.99],12):null;
+const map=typeof L!=='undefined'?L.map('map',{rotate:true,rotateControl:false,dragRotate:false,touchRotate:false,shiftKeyRotate:false,zoomControl:false,zoomAnimation:false,fadeAnimation:false,markerZoomAnimation:false}).setView([37.39,-5.99],12):null;
 if(map){
  L.control.zoom({position:'bottomright',zoomInTitle:'Acercar mapa',zoomOutTitle:'Alejar mapa'}).addTo(map);
  const MetreScale=L.Control.Scale.extend({_updateMetric(maxMetres){const metres=this._getRoundNum(maxMetres);this._updateScale(this._mScale,metres.toLocaleString('es')+' m',metres/maxMetres);}});

@@ -37,9 +37,9 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  let approximatePending=false,approximateAttempt=0;
  let expanded=false,returnFocus=null;
  let travelHeading=null,courseAnchor=null;
- let viewPosition=null;
+ let viewPosition=null,zooming=false;
  const camera=createGpsCamera(map,p=>{if(marker)marker.setLatLng([p.lat,p.lon]);if(accuracyCircle)accuracyCircle.setLatLng([p.lat,p.lon]);orientArrow();});
- function followPosition(){if(!last||!following)return;camera.follow(last,travelHeading,viewPosition===null);viewPosition=[last.lon,last.lat];}
+ function followPosition(){if(!last||!following||zooming)return;camera.follow(last,travelHeading,viewPosition===null);viewPosition=[last.lon,last.lat];}
  function orientArrow(){const shape=marker?.getElement?.()?.querySelector('.gps-arrow-shape');if(shape)shape.style.transform='rotate('+((following&&map.getBearing?-map.getBearing():(travelHeading??0))+(map.getBearing?map.getBearing():0))+'deg)';}
  let chromeTimer=null;
  function clearChromeTimer(){if(chromeTimer!==null){clearTimeout(chromeTimer);chromeTimer=null;}}
@@ -95,8 +95,8 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  }
  if(el('startGps'))el('startGps').onclick=start;el('centerGps').onclick=()=>{following=true;viewPosition=null;followPosition();controls();};
  if(map)map.on('rotate',orientArrow);
- if(map)map.on('zoomstart',()=>camera.cancel());
- if(map)map.on('zoomend',()=>{if(active&&following)followPosition();});
+ if(map)map.on('zoomstart',()=>{zooming=true;camera.cancel();});
+ if(map)map.on('zoomend',()=>{zooming=false;if(active&&following)followPosition();});
  if(map)map.on('dragstart',()=>{if(active){camera.cancel();following=false;if(map.stopHeadingUp)map.stopHeadingUp();controls();}});
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(active){if(!last||Date.now()-last.time>30000){status('Retomando el GPS. Esperando una posición reciente…','warning');requestApproximate(generation);}keepAwake();}}else{releaseWake();}});
  window.addEventListener('pagehide',()=>{if(active)stop();});
