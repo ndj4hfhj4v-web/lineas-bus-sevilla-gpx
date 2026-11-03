@@ -17,7 +17,7 @@ function event(){const waiting=[];return {waiting,waitUntil:p=>waiting.push(p)};
 function tile(z=16,x=31678,y=25422){return new URL('https://www.ign.es/wmts/ign-base?REQUEST=GetTile&LAYER=IGNBaseTodo&TILEMATRIX='+z+'&TILECOL='+x+'&TILEROW='+y);}
 (async()=>{
  const install=event();listeners.install(install);await Promise.all(install.waiting);
- const appCache=await caches.open('bus-sevilla-shell-__BUILD_ID__');for(const asset of ['manifest.webmanifest','icons/apple-touch-icon.png','icons/icon-maskable-512.png'])assert(await appCache.match(scope+asset),'Install assets must survive airplane mode');
+ const appCache=await caches.open('bus-sevilla-shell-__BUILD_ID__');for(const asset of ['manifest.webmanifest','icons/apple-touch-icon.png','icons/icon-maskable-512.png','icons/launch-1170x2532.png'])assert(await appCache.match(scope+asset),'Install assets must survive airplane mode');
  assert(ctx.isMapTile(tile()),'Seville tile must be eligible');assert(!ctx.isMapTile(new URL('https://tile.openstreetmap.org/16/1/1.png')));assert(!ctx.isMapTile(tile(19)));assert(!ctx.isMapTile(tile(16,0,0)));
  const request=new Request(tile().href),first=event();let response=await ctx.mapTile(request,first);await Promise.all(first.waiting);assert.equal(response.status,200);assert.equal(requests,1);
  online=false;response=await ctx.mapTile(request,event());assert.equal(requests,1,'A saved tile is reused without a download');assert.equal((await response.arrayBuffer()).byteLength,3);

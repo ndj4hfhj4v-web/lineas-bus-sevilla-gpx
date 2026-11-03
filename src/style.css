@@ -124,4 +124,4 @@ html:has(body.map-app){height:100%;overflow:hidden;overscroll-behavior:none;-web
 :root[data-theme="night"] .map-app #senseBar select{background:#172b22;color:#dce8e0;border-color:#3b5748}
 
 /* Embedded logo is available immediately, including offline. */
-.app-splash{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;background:#244b3b}.app-splash img{display:block;width:min(72vmin,420px);height:auto;aspect-ratio:1;object-fit:contain}.app-splash[hidden]{display:none!important}
+.app-splash{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;background:#244b3b}.app-splash img,.app-splash svg{display:block;width:72vmin;max-width:420px;height:auto;aspect-ratio:1;object-fit:contain}.app-splash[hidden]{display:none!important}
