@@ -4,8 +4,11 @@ function validMapType(value){return ['street','aerial','topographic'].includes(v
 function readMapType(){try{return validMapType(localStorage.getItem('bus-sevilla-map-type'));}catch{return 'street';}}
 function mapTileUrl(type){const source=MAP_BACKGROUNDS[validMapType(type)];return 'https://www.ign.es/wmts/'+source.service+'?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER='+source.layer+'&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}';}
 const initialMapType=readMapType();
-const map=typeof L!=='undefined'?L.map('map',{rotate:true,rotateControl:false,dragRotate:false,touchRotate:false,shiftKeyRotate:false}).setView([37.39,-5.99],12):null;
+const map=typeof L!=='undefined'?L.map('map',{rotate:true,rotateControl:false,dragRotate:false,touchRotate:false,shiftKeyRotate:false,zoomControl:false}).setView([37.39,-5.99],12):null;
 if(map){
+ L.control.zoom({position:'bottomright',zoomInTitle:'Acercar mapa',zoomOutTitle:'Alejar mapa'}).addTo(map);
+ const MetreScale=L.Control.Scale.extend({_updateMetric(maxMetres){const metres=this._getRoundNum(maxMetres);this._updateScale(this._mScale,metres.toLocaleString('es')+' m',metres/maxMetres);}});
+ const scale=new MetreScale({position:'bottomleft',imperial:false,maxWidth:110}).addTo(map);scale.getContainer().setAttribute('aria-label','Escala del mapa en metros');
  background=L.tileLayer(mapTileUrl(initialMapType),{maxZoom:19,maxNativeZoom:18,crossOrigin:true,attribution:'Mapa: <a href="https://www.ign.es/">IGN · CC BY 4.0</a>'});
  const notice=document.createElement('p');notice.className='hint';notice.setAttribute('role','status');notice.hidden=true;$('map').after(notice);
  background.on('tileerror',()=>{notice.hidden=false;notice.textContent='No se puede cargar parte del mapa de fondo. El recorrido, las paradas y las descargas GPX siguen disponibles.';});

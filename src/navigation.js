@@ -18,7 +18,7 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
  let expanded=false,returnFocus=null;
  let travelHeading=null,courseAnchor=null;
  let viewPosition=null;
- function followPosition(){if(!last||!following)return;if(travelHeading!==null&&map.setHeading)map.setHeading(travelHeading,{ease:.18,deadzone:1});const ll=[last.lat,last.lon];if(viewPosition&&map.panTo&&map.getZoom()>=16&&gpsDistance(viewPosition,[last.lon,last.lat])<400)map.panTo(ll,{animate:true,duration:.6,easeLinearity:.3});else map.setView(ll,Math.max(16,map.getZoom()),{animate:false});viewPosition=[last.lon,last.lat];}
+ function followPosition(){if(!last||!following)return;if(travelHeading!==null&&map.setHeading)map.setHeading(travelHeading,{ease:.18,deadzone:1});const ll=[last.lat,last.lon];if(viewPosition&&map.panTo&&gpsDistance(viewPosition,[last.lon,last.lat])<400)map.panTo(ll,{animate:true,duration:.6,easeLinearity:.3});else map.setView(ll,viewPosition?map.getZoom():Math.max(16,map.getZoom()),{animate:false});viewPosition=[last.lon,last.lat];}
  function orientArrow(){const shape=marker?.getElement?.()?.querySelector('.gps-arrow-shape');if(shape)shape.style.transform='rotate('+((travelHeading??0)+(map.getBearing?map.getBearing():0))+'deg)';}
  let chromeTimer=null;
  function clearChromeTimer(){if(chromeTimer!==null){clearTimeout(chromeTimer);chromeTimer=null;}}
