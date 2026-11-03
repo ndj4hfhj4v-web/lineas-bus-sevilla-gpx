@@ -83,3 +83,9 @@ Leaflet 1.9.4 y el complemento de rotación 0.3.0 se incluyen localmente: no hac
 La licencia del IGN es compatible con CC BY 4.0 y la atribución sigue visible también sin conexión. La caché usa solo teselas vistas, en zooms 11–18 y dentro del área de Sevilla; no presupone autorización para descargas ilimitadas del servicio. Para paquetes completos offline se puede preparar una publicación propia con cartografía licenciada y servirla desde almacenamiento propio, después de comprobar el tamaño y las condiciones de los datos.
 
 Referencias: [licencia del IGN](https://www.ign.es/resources/licencia/Condiciones_licenciaUso_IGN.pdf), [política de almacenamiento de WebKit](https://webkit.org/blog/14403/updates-to-storage-policy/).
+
+## Instalación en el teléfono
+
+En Opciones → Instalar aplicación se muestran las instrucciones correspondientes al dispositivo. Chrome y Edge muestran el botón de instalación cuando el navegador ofrece esa función. En iPhone/iPad, abre la web en Safari, usa Compartir → Añadir a pantalla de inicio y activa Abrir como app web si aparece. Abre el icono instalado y guarda las líneas y sus mapas desde ahí. No se garantiza navegación GPS con la pantalla bloqueada.
+
+Se incluyen un icono Apple opaco de 180 × 180 y un icono maskable de 512 × 512 con margen seguro para Android. Ambos se precargan en el Service Worker. Una actualización del código cambia la versión de la caché de la aplicación y conserva las cachés de mapas y los datos de IndexedDB.
