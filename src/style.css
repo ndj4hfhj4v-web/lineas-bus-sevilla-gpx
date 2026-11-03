@@ -122,3 +122,6 @@ html:has(body.map-app){height:100%;overflow:hidden;overscroll-behavior:none;-web
 .map-app #optionsPanel[data-view="install"]{width:min(360px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}.map-app #installAction{width:100%;min-height:48px;margin:0 0 14px}
 
 :root[data-theme="night"] .map-app #senseBar select{background:#172b22;color:#dce8e0;border-color:#3b5748}
+
+/* Embedded logo is available immediately, including offline. */
+.app-splash{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;background:#244b3b;animation:app-splash-hide .5s step-end forwards}.app-splash img{display:block;width:min(72vmin,420px);height:auto;aspect-ratio:1;object-fit:contain}@keyframes app-splash-hide{from{visibility:visible}to{visibility:hidden;pointer-events:none}}
