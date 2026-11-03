@@ -127,3 +127,5 @@ html:has(body.map-app){height:100%;overflow:hidden;overscroll-behavior:none;-web
 .app-splash{position:fixed;inset:0;z-index:2147483647;isolation:isolate;display:grid;place-items:center;background:#244b3b}.app-splash img,.app-splash svg{display:block;width:72vmin;max-width:420px;height:auto;aspect-ratio:1;object-fit:contain}.app-splash[hidden]{display:none!important}
 
 .screen-awake-settings{margin-top:18px}.screen-awake-settings h2{font-size:14px;letter-spacing:0;margin-bottom:8px}.screen-awake-settings p{font-size:14px;line-height:1.5;margin:0 0 10px}.screen-awake-settings button{min-height:44px}
+
+.map-app #map button.zoom-favourite{width:auto!important;min-width:94px;min-height:44px;padding:8px 12px;border:1px solid currentColor;border-radius:10px;font:600 14px/1.3 system-ui,sans-serif;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}.map-app #map button.zoom-favourite[data-has-favourite="true"]::after{content:" ☆"}.map-app #map button.zoom-favourite[data-at-favourite="true"]::after{content:" ★"}.map-app #map button.zoom-favourite:focus-visible{outline:3px solid #e9b949;outline-offset:3px}
