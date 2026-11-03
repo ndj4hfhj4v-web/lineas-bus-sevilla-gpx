@@ -30,11 +30,20 @@ async function mapTile(request,event){
  const task=(async()=>{try{const response=await fetch(request);if(!response.ok)return missingTile();event.waitUntil(storeTile(request,response).catch(warning));return response;}catch{return missingTile();}})();
  pending.set(request.url,task);try{return (await task).clone();}finally{pending.delete(request.url);}
 }
+// Installation metadata should refresh online, while remaining available offline.
+async function appManifest(request){
+ const url=new URL('manifest.webmanifest',BASE).href;let cache;try{cache=await caches.open(SHELL);}catch{}
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4000);
+ try{const response=await fetch(request,{cache:'no-cache',signal:controller.signal});if(!response.ok)throw Error('Manifest unavailable');try{await cache?.put(url,response.clone());}catch{}return response;}
+ catch{const saved=await cache?.match(url);return saved||new Response('Manifest unavailable',{status:503,headers:{'Cache-Control':'no-store'}});}
+ finally{clearTimeout(timer);}
+}
 async function shell(request){const cache=await caches.open(SHELL);const hit=await cache.match(INDEX);if(hit)return hit;return fetch(request);}
 self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(SHELL);await cache.addAll(ASSETS.map(path=>new Request(new URL(path,BASE).href,{cache:'reload'})));await self.skipWaiting();})()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const name of await caches.keys())if(name.startsWith('bus-sevilla-shell-')&&name!==SHELL)await caches.delete(name);await self.clients.claim();})()));
 self.addEventListener('fetch',event=>{const request=event.request;if(request.method!=='GET')return;const url=new URL(request.url);
  if(request.mode==='navigate'&&url.origin===BASE.origin&&(url.pathname===BASE.pathname||url.href.split('?')[0]===INDEX)){event.respondWith(shell(request));return;}
+ if(url.origin===BASE.origin&&url.pathname===new URL('manifest.webmanifest',BASE).pathname){event.respondWith(appManifest(request));return;}
  if(url.origin===BASE.origin&&ASSETS.some(path=>new URL(path,BASE).pathname===url.pathname)){event.respondWith((async()=>{const cache=await caches.open(SHELL);return await cache.match(url.href.split('?')[0])||fetch(request);})());return;}
  if(isMapTile(url))event.respondWith(mapTile(request,event));
 });
