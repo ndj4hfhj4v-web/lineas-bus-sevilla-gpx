@@ -3,7 +3,7 @@ const root=path.resolve(__dirname,'../src'),out=path.resolve(__dirname,'../docs'
 fs.mkdirSync(out,{recursive:true});let html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const data=JSON.parse(fs.readFileSync(path.join(root,'snapshot.json'),'utf8'));require('../src/core.js').validFeatures(data);
 for(const name of ['leaflet.css','style.css'])html=html.replace('<link rel="stylesheet" href="'+name+'">',()=>'<style>'+fs.readFileSync(path.join(root,name),'utf8')+'</style>');
-for(const name of ['leaflet.js','leaflet-rotate.js','core.js','offline.js','navigation.js','app.js']){
+for(const name of ['startup.js','leaflet.js','leaflet-rotate.js','core.js','offline.js','navigation.js','app.js']){
  let js=fs.readFileSync(path.join(root,name),'utf8');
  if(name==='app.js')js=js.replaceAll("const r=await fetch('snapshot.json');if(!r.ok)throw Error();data=await r.json();",'data=JSON.parse(document.getElementById("embedded-data").textContent);');
  html=html.replace('<script src="'+name+'"></script>',()=>'<script>'+js.replace(/<\/script/gi,'<\\/script')+'</script>');
