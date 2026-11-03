@@ -120,3 +120,5 @@ html:has(body.map-app){height:100%;overflow:hidden;overscroll-behavior:none;-web
 .gpx-download-links{display:flex;flex-direction:column;gap:8px}.gpx-download-links a{display:flex;align-items:center;min-height:44px;padding:10px 12px;border:1px solid #acbdb1;border-radius:10px;color:inherit;line-height:1.4;text-decoration:none}.gpx-download-links a:focus-visible{outline:3px solid #47705e;outline-offset:2px}
 
 .map-app #optionsPanel[data-view="install"]{width:min(360px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}.map-app #installAction{width:100%;min-height:48px;margin:0 0 14px}
+
+:root[data-theme="night"] .map-app #senseBar select{background:#172b22;color:#dce8e0;border-color:#3b5748}
