@@ -89,8 +89,8 @@ html:has(body.map-app){height:100%;overflow:hidden;overscroll-behavior:none;-web
 .theme-settings{margin:0 0 14px}.map-app .theme-settings select{margin-bottom:0}
 :root[data-theme="night"]{color-scheme:dark;background:#101c17;color:#dce8e0}
 :root[data-theme="night"] .map-app,:root[data-theme="night"] .map-app #gpsDetail,:root[data-theme="night"] .map-app #map{background:#101c17;color:#dce8e0}
-:root[data-theme="night"] .leaflet-tile{filter:invert(1) hue-rotate(180deg) saturate(.55) brightness(.78) contrast(.95)}
-:root[data-theme="night"] .leaflet-overlay-pane path[stroke="#315e46"]{stroke:#8bd6aa}
+:root[data-theme="night"] .leaflet-tile{filter:brightness(.78) saturate(.8) contrast(1.12)}
+:root[data-theme="night"] .leaflet-overlay-pane path[stroke="#315e46"]{stroke:#174f36;filter:drop-shadow(0 0 1.5px #ffffff)}
 :root[data-theme="night"] .map-app button,:root[data-theme="night"] .map-app input,:root[data-theme="night"] .map-app select,:root[data-theme="night"] .floating-panel{background:#172b22;color:#dce8e0;border-color:#3b5748}
 :root[data-theme="night"] .map-app button:hover,:root[data-theme="night"] .line.active{background:#2a4938}
 :root[data-theme="night"] .map-app .lines{background:#112219}
@@ -110,7 +110,7 @@ html:has(body.map-app){height:100%;overflow:hidden;overscroll-behavior:none;-web
 
 .map-app #optionsPanel[data-view="gpx"]{width:min(330px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}
 
-.map-settings{margin-bottom:16px}.map-app .map-settings select{margin-bottom:0}:root[data-theme="night"][data-map-type="aerial"] .leaflet-tile{filter:brightness(.66) saturate(.8)}:root[data-map-type="aerial"] .leaflet-overlay-pane path[stroke="#315e46"]{filter:drop-shadow(0 0 2px #fff)}
+.map-settings{margin-bottom:16px}.map-app .map-settings select{margin-bottom:0}:root[data-theme="night"][data-map-type="aerial"] .leaflet-tile{filter:brightness(.86) saturate(.9) contrast(1.08)}:root[data-map-type="aerial"] .leaflet-overlay-pane path[stroke="#315e46"]{filter:drop-shadow(0 0 2px #fff)}
 
 .map-app #optionsPanel[data-view="info"]{width:min(360px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}.map-app .info-content{font-size:14px;line-height:1.55}.map-app .info-content h2{font-size:16px;margin:20px 0 8px}.map-app .info-content h2:first-child{margin-top:0}.map-app .info-content p{margin:0 0 12px}
 
