@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Bus Co-Pilot",
-  "short_name": "Bus Co-Pilot",
+  "name": "Copiloter",
+  "short_name": "Copiloter",
   "description": "Consulta líneas de bus, sigue el recorrido con GPS y descarga archivos GPX.",
   "lang": "es",
   "start_url": "./",

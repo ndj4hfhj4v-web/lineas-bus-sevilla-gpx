@@ -247,8 +247,8 @@ function initInstallation(win=window,nav=navigator,doc=document){
  const mode=win.matchMedia('(display-mode: standalone)'),ios=/iPad|iPhone|iPod/.test(nav.userAgent)||(/Macintosh/.test(nav.userAgent)&&nav.maxTouchPoints>1),android=/Android/.test(nav.userAgent);let pending=null,accepted=false,busy=false;
  function installed(){return !!(mode.matches||nav.standalone);}
  function render(){const active=installed();entry.textContent=active?'Aplicación instalada':'Instalar aplicación';action.hidden=active||accepted||!pending;action.disabled=busy;action.textContent=busy?'Abriendo instalación…':'Instalar aplicación';
-  status.textContent=active?'Ya estás usando la aplicación desde su icono.':accepted?'Instalación solicitada. Busca «Bus Co-Pilot» entre tus aplicaciones.':'';status.hidden=!status.textContent;
-  steps.hidden=ios||android||active;steps.textContent='En el ordenador, abre el menú de Chrome o Edge y elige «Instalar Bus Co-Pilot» si aparece.';
+  status.textContent=active?'Ya estás usando la aplicación desde su icono.':accepted?'Instalación solicitada. Busca «Copiloter» entre tus aplicaciones.':'';status.hidden=!status.textContent;
+  steps.hidden=ios||android||active;steps.textContent='En el ordenador, abre el menú de Chrome o Edge y elige «Instalar Copiloter» si aparece.';
  }
  function before(event){event.preventDefault();pending=event;accepted=false;render();}
  function done(){pending=null;accepted=true;busy=false;render();}

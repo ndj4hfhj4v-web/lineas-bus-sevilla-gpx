@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib');
-const root=path.resolve(__dirname,'../docs'),output=path.resolve(__dirname,'../docs/Bus-Co-Pilot.zip');
+const root=path.resolve(__dirname,'../docs'),output=path.resolve(__dirname,'../docs/Copiloter.zip');
 const names=['index.html','sw.js','manifest.webmanifest',...fs.readdirSync(path.join(root,'icons')).filter(n=>n.endsWith('.png')).map(n=>'icons/'+n)];
 function crc32(b){let c=0xffffffff;for(const v of b){c^=v;for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xedb88320:0);}return (c^0xffffffff)>>>0;}
 const parts=[],central=[];let offset=0;

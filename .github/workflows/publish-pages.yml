@@ -1,4 +1,4 @@
-name: Publicar Bus Co-Pilot
+name: Publicar Copiloter
 on:
   push:
     branches: [main]

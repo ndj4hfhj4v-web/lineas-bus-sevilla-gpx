@@ -1,4 +1,4 @@
-# Bus Co-Pilot
+# Copiloter
 
 Web independiente para consultar recorridos de autobús de Sevilla, ver sus paradas, seguir la posición del móvil sobre el mapa y descargar el sentido elegido como GPX.
 
