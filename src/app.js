@@ -258,6 +258,8 @@ function initInstallation(win=window,nav=navigator,doc=document){
 }
 initInstallation();
 
+function initGpxMenuVisibility(env={document,storage:()=>localStorage}){const toggle=env.document.getElementById('showGpxMenu'),entry=env.document.getElementById('openGpx'),key='copiloter-show-gpx-menu';let visible=true;try{visible=env.storage().getItem(key)!=='false';}catch{}function apply(){entry.hidden=!visible;toggle.checked=visible;}toggle.onchange=()=>{visible=toggle.checked;try{env.storage().setItem(key,String(visible));}catch{}apply();};apply();}
+initGpxMenuVisibility();
 function initStopsMenuVisibility(env={document,storage:()=>localStorage}){const toggle=env.document.getElementById('showStopsMenu'),entry=env.document.getElementById('openOffline'),key='copiloter-show-stops-menu';let visible=true;try{visible=env.storage().getItem(key)!=='false';}catch{}function apply(){entry.hidden=!visible;toggle.checked=visible;}toggle.onchange=()=>{visible=toggle.checked;try{env.storage().setItem(key,String(visible));}catch{}apply();};apply();}
 initStopsMenuVisibility();
 function initZoomMetresVisibility(env={document,storage:()=>localStorage}){const toggle=env.document.getElementById('showZoomMetres'),root=env.document.documentElement,key='bus-copilot-show-zoom-metres';let visible=true;try{visible=env.storage().getItem(key)!=='false';}catch{}function apply(){root.dataset.zoomMetres=visible?'visible':'hidden';toggle.checked=visible;}toggle.onchange=()=>{visible=toggle.checked;try{env.storage().setItem(key,String(visible));}catch{}apply();};apply();}

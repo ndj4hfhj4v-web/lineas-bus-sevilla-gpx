@@ -144,3 +144,5 @@ html[data-zoom-metres="hidden"] .leaflet-control-scale{display:none!important}
 #openDisplay{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;margin:4px 0 16px}
 
 #openOffline[hidden]{display:none!important}
+
+#openGpx[hidden]{display:none!important}
