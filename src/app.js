@@ -144,6 +144,7 @@ async function load(refresh=false){
   try{if(!data){const r=await fetch('snapshot.json');if(!r.ok)throw Error();data=await r.json();}validFeatures(data);message='Sin datos nuevos. Copia local del '+new Date(data.fetchedAt).toLocaleDateString('es-ES');}
   catch{$('dataStatus').dataset.state='error';$('status').textContent='No se pueden cargar los datos. Comprueba la conexión y pulsa Actualizar.';$('refresh').disabled=false;return;}
  }
+ data=withTestRoutes(data);
  latestOfflineDataset=data;automaticNetwork?.setData(data);
  if(routeNavigator.isActive()&&current){$('dataStatus').dataset.state=state;$('status').textContent='Datos disponibles para la próxima selección. Tu navegación continúa con el recorrido actual.';$('refresh').disabled=false;return;}
  features=validFeatures(data);const index=new Map;for(const f of features){const id=label(f);if(!index.has(id))index.set(id,{id,name:f.attributes.NombreLinea||id,items:[]});index.get(id).items.push(f);}groups=[...index.values()].sort((a,b)=>a.id.localeCompare(b.id,'es',{numeric:true}));$('dataStatus').dataset.state=state;$('status').textContent=groups.length+' líneas · '+features.length+' recorridos · '+message;if(index.has(selected))choose(selected);else{renderList();routeNavigator.routeChanged();}$('refresh').disabled=false;}
