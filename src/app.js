@@ -7,18 +7,7 @@ function mapTileUrl(type){const source=MAP_BACKGROUNDS[validMapType(type)];retur
 // Optional Mapbox renderer. IGN remains the only source used by offline map packs.
 const MAPBOX_PUBLIC_TOKEN="__BUS_COPILOT_MAPBOX_PUBLIC_TOKEN__";
 function mapboxCamera(map){const center=map.getCenter();return {center:[center.lng,center.lat],zoom:map.getZoom()-1,bearing:-(map.getBearing?map.getBearing():0),pitch:0};}
-function mapboxStyle(type){return 'mapbox://styles/mapbox/'+({street:'streets-v12',aerial:'satellite-streets-v12',topographic:'outdoors-v12'}[type]||'streets-v12');}
-function applyMapboxNight(renderer,type){
- if(type==='aerial')return;
- for(const layer of renderer.getStyle().layers||[]){const source=layer['source-layer']||'',id=layer.id,building=source==='building',road=source==='road'||source==='aeroway',water=/water|depth/.test(source);
-  if(layer.type==='background')renderer.setPaintProperty(id,'background-color','#252525');
-  else if(layer.type==='fill'){renderer.setPaintProperty(id,'fill-color',building?'#000000':road?'#929292':water?'#182027':'#252525');renderer.setPaintProperty(id,'fill-opacity',1);renderer.setPaintProperty(id,'fill-outline-color',building?'#000000':water?'#182027':'#252525');}
-  else if(layer.type==='line'){renderer.setPaintProperty(id,'line-color',building?'#000000':road?(/case|casing|outline/.test(id)?'#4a4a4a':'#a0a0a0'):water?'#182027':'#3c3c3c');renderer.setPaintProperty(id,'line-opacity',1);}
-  else if(layer.type==='fill-extrusion'){renderer.setLayoutProperty(id,'visibility','none');}
-  else if(layer.type==='symbol'){renderer.setPaintProperty(id,'text-color','#dedede');renderer.setPaintProperty(id,'text-halo-color','#171717');renderer.setPaintProperty(id,'text-halo-width',1.2);renderer.setPaintProperty(id,'icon-opacity',0);}
-  else if(layer.type==='hillshade')renderer.setLayoutProperty(id,'visibility','none');
- }
-}
+function mapboxStyle(type,dark=false){return 'mapbox://styles/mapbox/'+(type==='street'&&dark?'dark-v11':({street:'streets-v12',aerial:'satellite-streets-v12',topographic:'outdoors-v12'}[type]||'streets-v12'));}
 let mapboxSdkPromise;
 function loadMapboxSdk(doc=document,win=window){
  if(win.mapboxgl)return Promise.resolve(win.mapboxgl);if(mapboxSdkPromise)return mapboxSdkPromise;
@@ -37,7 +26,7 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
  function sync(){frame=null;if(disposed||!renderer||!wantsMapbox())return;try{renderer.jumpTo(mapboxCamera(map));}catch{showIgn('Mapbox no está disponible. Mostrando IGN.');}}
  function schedule(){if(frame===null)frame=win.requestAnimationFrame(sync);}
  function showMapbox(){if(disposed||!ready||!wantsMapbox())return;clearLoadTimer();renderer.resize();sync();if(map.hasLayer(ign))map.removeLayer(ign);host.style.visibility='visible';if(!credited){map.attributionControl?.addAttribution(attribution);credited=true;}root.dataset.mapProvider='mapbox';setStatus('');}
- function style(){if(!renderer)return;const next=type()+'|'+dark();if(next===styleKey)return;styleKey=next;renderer.setStyle(mapboxStyle(type()));}
+ function style(){if(!renderer)return;const next=type()+'|'+(type()==='street'&&dark());if(next===styleKey)return;styleKey=next;ready=false;showIgn('Cargando Mapbox…');renderer.setStyle(mapboxStyle(type(),dark()),{diff:false});}
  async function apply(){
   select.value=preferred;if(!map||!ign){select.disabled=true;return;}
   if(!wantsMapbox()){generation++;showIgn(preferred==='mapbox'?'Sin conexión: se utiliza el mapa de IGN guardado en este dispositivo.':'');return;}
@@ -47,9 +36,8 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
   if(pending)return;const token=++generation;setStatus('Cargando Mapbox…');
   pending=(async()=>{try{const sdk=await env.loadSdk();if(disposed||token!==generation||!wantsMapbox())return;if(!sdk.supported())throw Error('WebGL no disponible');
    host=doc.createElement('div');host.className='mapbox-background';host.style.visibility='hidden';host.setAttribute('aria-hidden','true');map.getContainer().prepend(host);
-   renderer=new sdk.Map({container:host,accessToken,style:mapboxStyle(type()),...mapboxCamera(map),projection:'mercator',language:'es',interactive:false,attributionControl:false,logoPosition:'bottom-left',antialias:false,fadeDuration:0,renderWorldCopies:false,maxPitch:0});styleKey=type()+'|'+dark();
-   renderer.on('style.load',()=>{if(dark())applyMapboxNight(renderer,type());});
-   renderer.on('load',()=>{ready=true;failed=false;showMapbox();});renderer.on('error',()=>{if(!ready){failed=true;showIgn('No se ha podido cargar Mapbox. Se mantiene IGN.');}});
+   renderer=new sdk.Map({container:host,accessToken,style:mapboxStyle(type(),dark()),...mapboxCamera(map),projection:'mercator',language:'es',interactive:false,attributionControl:false,logoPosition:'bottom-left',antialias:false,fadeDuration:0,renderWorldCopies:false,maxPitch:0});styleKey=type()+'|'+(type()==='street'&&dark());
+   renderer.on('idle',()=>{if(!ready){ready=true;failed=false;showMapbox();}});renderer.on('load',()=>{ready=true;failed=false;showMapbox();});renderer.on('error',()=>{if(!ready){failed=true;showIgn('No se ha podido cargar Mapbox. Se mantiene IGN.');}});
    renderer.on('webglcontextlost',()=>{ready=false;failed=true;showIgn('Mapbox ha perdido la imagen. Se mantiene IGN.');});renderer.on('webglcontextrestored',()=>{ready=true;failed=false;showMapbox();});
    loadTimer=win.setTimeout(()=>{loadTimer=null;if(!ready){failed=true;showIgn('Mapbox está tardando. Se mantiene IGN; puedes volver a seleccionarlo para reintentar.');}},25000);
   }catch{showIgn('Mapbox no está disponible en este dispositivo. Se mantiene IGN.');}finally{pending=null;if(!disposed&&token!==generation&&wantsMapbox())apply();}})();await pending;
@@ -63,7 +51,7 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
 }
 
 const initialMapType=readMapType();
-const map=typeof L!=='undefined'?L.map('map',{rotate:true,rotateControl:false,dragRotate:false,touchRotate:false,shiftKeyRotate:false,zoomControl:false,zoomSnap:0,zoomAnimation:false,fadeAnimation:false,markerZoomAnimation:false}).setView([37.39,-5.99],12):null;
+const map=typeof L!=='undefined'?L.map('map',{rotate:true,rotateControl:false,dragRotate:false,touchRotate:false,shiftKeyRotate:false,zoomControl:false,minZoom:0,maxZoom:19,zoomSnap:0,zoomAnimation:false,fadeAnimation:false,markerZoomAnimation:false}).setView([37.39,-5.99],12):null;
 if(map){
  const MetricZoom=L.Control.Zoom.extend({_zoomIn(){changeMetricZoom(this._map,-10);},_zoomOut(){changeMetricZoom(this._map,10);}});
  new MetricZoom({position:'bottomright',zoomInTitle:'Acercar',zoomOutTitle:'Alejar'}).addTo(map);
