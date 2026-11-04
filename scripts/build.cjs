@@ -13,6 +13,7 @@ const mapboxToken=process.env.MAPBOX_PUBLIC_TOKEN||'';
 if(mapboxToken&&!/^pk\.[A-Za-z0-9._-]+$/.test(mapboxToken))throw Error('MAPBOX_PUBLIC_TOKEN must be a public token');
 html=html.replaceAll('__BUS_COPILOT_MAPBOX_PUBLIC_TOKEN__',mapboxToken);
 fs.writeFileSync(path.join(out,'index.html'),html);
+fs.copyFileSync(path.join(root,'gps-prueba.html'),path.join(out,'gps-prueba.html')); 
 fs.copyFileSync(path.join(root,'manifest.webmanifest'),path.join(out,'manifest.webmanifest'));
 fs.cpSync(path.join(root,'icons'),path.join(out,'icons'),{recursive:true});fs.writeFileSync(path.join(out,'.nojekyll'),'');
 
