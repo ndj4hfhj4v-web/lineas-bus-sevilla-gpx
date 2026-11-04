@@ -1,5 +1,5 @@
 /* App shell version is replaced by the build. Route/GPX data lives in IndexedDB. */
-const SHELL='bus-sevilla-shell-48f08e466a401b39',TILES='bus-sevilla-tiles-v1',PACKS='bus-sevilla-map-packs-v1';
+const SHELL='bus-sevilla-shell-07cd6d9a4b8daf28',TILES='bus-sevilla-tiles-v1',PACKS='bus-sevilla-map-packs-v1';
 const BASE=new URL('./',self.location.href),INDEX=new URL('index.html',BASE).href;
 const ASSETS=['index.html','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/apple-touch-icon.png','icons/icon-maskable-512.png','icons/launch-1125x2436.png','icons/launch-1136x640.png','icons/launch-1170x2532.png','icons/launch-1179x2556.png','icons/launch-1206x2622.png','icons/launch-1242x2208.png','icons/launch-1242x2688.png','icons/launch-1284x2778.png','icons/launch-1290x2796.png','icons/launch-1320x2868.png','icons/launch-1334x750.png','icons/launch-1792x828.png','icons/launch-2208x1242.png','icons/launch-2436x1125.png','icons/launch-2532x1170.png','icons/launch-2556x1179.png','icons/launch-2622x1206.png','icons/launch-2688x1242.png','icons/launch-2778x1284.png','icons/launch-2796x1290.png','icons/launch-2868x1320.png','icons/launch-640x1136.png','icons/launch-750x1334.png','icons/launch-828x1792.png'];
 const MAX_TILES=384,MAX_TILE_BYTES=512*1024;
