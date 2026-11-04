@@ -247,8 +247,8 @@ function initInstallation(win=window,nav=navigator,doc=document){
  const mode=win.matchMedia('(display-mode: standalone)'),ios=/iPad|iPhone|iPod/.test(nav.userAgent)||(/Macintosh/.test(nav.userAgent)&&nav.maxTouchPoints>1),android=/Android/.test(nav.userAgent);let pending=null,accepted=false,busy=false;
  function installed(){return !!(mode.matches||nav.standalone);}
  function render(){const active=installed();entry.textContent=active?'Aplicación instalada':'Instalar aplicación';action.hidden=active||accepted||!pending;action.disabled=busy;action.textContent=busy?'Abriendo instalación…':'Instalar aplicación';
-  status.textContent=active?'Ya estás usando la aplicación desde su icono.':accepted?'Instalación solicitada. Busca «Bus Co-Pilot» entre tus aplicaciones.':ios?'Añádela desde Safari para abrirla con su propio icono.':pending?'Instala Bus Co-Pilot para abrirla en una ventana independiente.':'Puedes instalarla desde el menú de tu navegador.';
-  steps.textContent=active?'La red se prepara automáticamente para usarla sin conexión. Puedes comprobar el progreso en Información.':ios?'En Safari: abre el menú Compartir y elige «Añadir a pantalla de inicio». Activa «Abrir como app web» si aparece y pulsa «Añadir». Después abre el nuevo icono y espera a que termine la preparación automática.':android?'En Chrome: abre el menú ⋮ y busca «Añadir a pantalla de inicio» o «Instalar aplicación». Si estás en un navegador integrado, abre esta web en Chrome.':'En Chrome o Edge: utiliza el icono de instalación de la barra de direcciones o la opción «Instalar» del menú del navegador. Si no aparece, prueba con un navegador compatible.';
+  status.textContent=active?'Ya estás usando la aplicación desde su icono.':accepted?'Instalación solicitada. Busca «Bus Co-Pilot» entre tus aplicaciones.':'';status.hidden=!status.textContent;
+  steps.hidden=ios||android||active;steps.textContent='En el ordenador, abre el menú de Chrome o Edge y elige «Instalar Bus Co-Pilot» si aparece.';
  }
  function before(event){event.preventDefault();pending=event;accepted=false;render();}
  function done(){pending=null;accepted=true;busy=false;render();}
