@@ -3,7 +3,7 @@ const app=fs.readFileSync('src/app.js','utf8');const code=app.slice(app.indexOf(
 module.exports=(async()=>{
  const ctx={console};vm.createContext(ctx);vm.runInContext(code,ctx);
  assert.equal(ctx.mapboxStyle('street',true),'mapbox://styles/mapbox/dark-v11');assert.equal(ctx.mapboxStyle('aerial',true),'mapbox://styles/mapbox/satellite-streets-v12');
- let sdkLoads=0,constructed=0,removed=0,observer,frame;const events={},stored=new Map(),timers=new Map();let timer=0;
+ let sdkLoads=0,constructed=0,removed=0,observer,frame;const events={},stored=new Map([['bus-copilot-map-provider','ign']]),timers=new Map();let timer=0;
  const select={value:'ign',addEventListener:(n,fn)=>events['select:'+n]=fn,removeEventListener(){}};const status={textContent:'',hidden:true};const root={dataset:{theme:'day',mapType:'street'}};const hosts=[];
  const win={setTimeout:(fn,ms)=>{timers.set(++timer,fn);return timer;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>{frame=fn;return 1;},cancelAnimationFrame:()=>{frame=null;},addEventListener:(n,fn)=>events[n]=fn,removeEventListener(){},MutationObserver:class{constructor(fn){observer=fn;}observe(){}disconnect(){}}};
  const doc={documentElement:root,getElementById:id=>id==='mapProvider'?select:status,createElement:()=>({style:{},setAttribute(){},remove(){this.removed=true;}})};const nav={onLine:true};

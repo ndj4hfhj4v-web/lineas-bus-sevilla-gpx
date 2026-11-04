@@ -18,7 +18,7 @@ const BusOffline=(()=>{
  const removeLine=id=>run('lines','readwrite',s=>s.delete(id));
  // Explicit, user-requested route packs are kept apart from the temporary viewed-tile cache.
  const MAP_PACKS='bus-sevilla-map-packs-v1',RECENT_MAPS='bus-sevilla-tiles-v1';
- const PACK_ZOOMS=[11,12,13,14,15,16,17,18],PACK_MARGIN=3,MAX_PACK_TILES=3600,MAX_SAVED_MAP_TILES=12000;
+ const PACK_ZOOMS=[11,12,13,14,15,16,17,18],PACK_MARGIN=3,MAX_PACK_TILES=3600,MAX_SAVED_MAP_TILES=24000;
  function mapPackKey(id,type){return 'map-pack:'+id+':'+type;}
  function planMapPack(items,template){
   const probe=new URL(template.replace('{z}','16').replace('{x}','31678').replace('{y}','25422'));
@@ -40,32 +40,42 @@ const BusOffline=(()=>{
  }
  function usableMap(response){return !!response?.ok&&response.type!=='opaque'&&/^image\/(jpeg|png|webp)(;|$)/i.test(response.headers.get('content-type')||'')&&!/no-store|private/i.test(response.headers.get('cache-control')||'');}
  async function savedMapPacks(id){const records=await Promise.all(['street','aerial','topographic'].map(type=>run('data','readonly',s=>s.get(mapPackKey(id,type)))));return records.filter(r=>r?.value?.lineId===id).map(r=>r.value);}
- async function saveMapPack(id,type,items,template,{signal,onProgress=()=>{}}={}){
+ async function storeMapPlan(plan,{signal,onProgress=()=>{}}={}){
   if(!globalThis.caches)throw Error('Este navegador no permite guardar mapas.');
-  const plan=planMapPack(items,template),cache=await caches.open(MAP_PACKS),recent=await caches.open(RECENT_MAPS),keys=new Set((await cache.keys()).map(k=>k.url));
-  const missing=plan.filter(t=>!keys.has(t.url));if(keys.size+missing.length>MAX_SAVED_MAP_TILES)throw Error('No cabe otra línea de mapas. Borra mapas guardados o libera espacio.');
-  await run('data','readwrite',s=>s.delete(mapPackKey(id,type)));
-  let completed=0,index=0,downloaded=0,bytes=0,failed=false,gate=Promise.resolve(),lastNetwork=0;
-  function check(){if(signal?.aborted)throw Error('Descarga cancelada. Puedes continuarla volviendo a guardar la línea.');if(failed)throw Error('Descarga interrumpida.');}
-  function progress(){onProgress({completed,total:plan.length,downloaded,bytes});}
+  const cache=await caches.open(MAP_PACKS),recent=await caches.open(RECENT_MAPS),keys=new Set((await cache.keys()).map(k=>k.url)),needed=plan.filter(t=>!keys.has(t.url));
+  if(keys.size+needed.length>MAX_SAVED_MAP_TILES)throw Error('No hay espacio suficiente para completar los mapas de la red.');
+  let completed=plan.length-needed.length,index=0,downloaded=0,bytes=0,failed=false,gate=Promise.resolve(),lastNetwork=0,lastReport=0;
+  function check(){if(signal?.aborted)throw Error('Preparación pausada.');if(failed)throw Error('Preparación interrumpida.');}
+  function progress(force=false){const now=Date.now();if(force||completed===plan.length||now-lastReport>=250){lastReport=now;onProgress({completed,total:plan.length,downloaded,bytes});}}
   function networkTurn(){const turn=gate.then(async()=>{check();const wait=Math.max(0,250-(Date.now()-lastNetwork));if(wait)await new Promise(resolve=>setTimeout(resolve,wait));check();lastNetwork=Date.now();});gate=turn.catch(()=>{});return turn;}
-  async function worker(){while(index<plan.length){check();const tile=plan[index++];try{
-    let response=await cache.match(tile.url);
-    if(!usableMap(response)){response=await recent.match(tile.url);if(!usableMap(response)){
-      if(globalThis.navigator?.onLine===false)throw Error('Falta conexión para completar los mapas.');await networkTurn();
-      const controller=new AbortController(),abort=()=>controller.abort();signal?.addEventListener('abort',abort,{once:true});const timer=setTimeout(abort,20000);
-      try{response=await fetch(tile.url,{mode:'cors',signal:controller.signal});downloaded++;}finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
-     }
-     check();if(!usableMap(response))throw Error('No se ha recibido una imagen válida del mapa.');const data=await response.arrayBuffer();if(!data.byteLength||data.byteLength>512*1024)throw Error('La imagen del mapa no se puede guardar.');bytes+=data.byteLength;await cache.put(tile.url,new Response(data,{status:200,headers:response.headers}));
-    }
-    completed++;progress();
-   }catch(error){failed=true;throw error;}}
-  }
-  progress();const results=await Promise.allSettled([worker(),worker()]);const failure=results.find(r=>r.status==='rejected');if(failure)throw failure.reason;check();
-  // Verify durable cache entries, not just successful HTTP responses, before declaring the pack ready.
-  const stored=new Set((await (await caches.open(MAP_PACKS)).keys()).map(k=>k.url));if(plan.some(t=>!stored.has(t.url)))throw Error('No se han conservado todos los mapas. Vuelve a guardar la línea.');
+  async function worker(){while(index<needed.length){check();const tile=needed[index++];try{
+   let response=await cache.match(tile.url);if(!usableMap(response)){response=await recent.match(tile.url);if(!usableMap(response)){
+    if(globalThis.navigator?.onLine===false)throw Error('Sin conexión. La preparación continuará al recuperarla.');await networkTurn();check();
+    const controller=new AbortController(),abort=()=>controller.abort();signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();const timer=setTimeout(abort,20000);
+    try{response=await fetch(tile.url,{mode:'cors',signal:controller.signal});downloaded++;}finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
+   }
+   check();if(!usableMap(response))throw Error('No se ha recibido una imagen válida del mapa.');const data=await response.arrayBuffer();if(!data.byteLength||data.byteLength>512*1024)throw Error('La imagen del mapa no se puede guardar.');bytes+=data.byteLength;await cache.put(tile.url,new Response(data,{status:200,headers:response.headers}));}
+   completed++;progress();
+  }catch(error){failed=true;throw error;}}}
+  check();progress(true);const results=await Promise.allSettled([worker(),worker()]),failure=results.find(r=>r.status==='rejected');if(failure)throw failure.reason;check();
+  const stored=new Set((await (await caches.open(MAP_PACKS)).keys()).map(k=>k.url));if(plan.some(t=>!stored.has(t.url)))throw Error('No se han conservado todos los mapas. Se volverá a intentar.');progress(true);return {completed,total:plan.length,downloaded,bytes};
+ }
+ async function saveMapPack(id,type,items,template,{signal,onProgress=()=>{}}={}){
+  const plan=planMapPack(items,template);await run('data','readwrite',s=>s.delete(mapPackKey(id,type)));await storeMapPlan(plan,{signal,onProgress});
   const pack={lineId:id,type,count:plan.length,zooms:PACK_ZOOMS,savedAt:new Date().toISOString()};await run('data','readwrite',s=>s.put({id:mapPackKey(id,type),value:pack}));announce();return pack;
  }
+ async function planNetworkMapPack(items,template,{signal,yieldControl=()=>new Promise(resolve=>setTimeout(resolve,0))}={}){
+  const groups=new Map(),tiles=new Map();for(const [i,item] of items.entries()){const id=String(item.attributes?.LabelLinea||item.attributes?.Linea||'route-'+i);if(!groups.has(id))groups.set(id,[]);groups.get(id).push(item);}
+  for(const routes of groups.values()){if(signal?.aborted)throw Error('Preparación pausada.');for(const tile of planMapPack(routes,template))tiles.set(tile.url,tile);await yieldControl();}
+  return [...tiles.values()].sort((a,b)=>a.z-b.z||a.x-b.x||a.y-b.y);
+ }
+ async function saveNetworkMapPack(items,template,{signal,onProgress=()=>{},fingerprint=''}={}){
+  const plan=await planNetworkMapPack(items,template,{signal});if(signal?.aborted)throw Error('Preparación pausada.');
+  await run('data','readwrite',s=>s.delete('network-map-pack:street'));const result=await storeMapPlan(plan,{signal,onProgress});
+  const pack={type:'street',count:plan.length,zooms:PACK_ZOOMS,fingerprint,savedAt:new Date().toISOString()};await run('data','readwrite',s=>s.put({id:'network-map-pack:street',value:pack}));announce();return {...pack,...result};
+ }
+ const networkMapInfo=async()=>{const record=await run('data','readonly',s=>s.get('network-map-pack:street'));return record?.value||null;};
+
 
  async function persistence(){try{return !!(await navigator.storage?.persist?.());}catch{return false;}}
  function announce(){window.dispatchEvent(new Event('bus-offline-change'));}
@@ -74,7 +84,7 @@ const BusOffline=(()=>{
   try{registration=await navigator.serviceWorker.register('sw.js',{scope:'./',updateViaCache:'none'});navigator.serviceWorker.addEventListener('controllerchange',announce);navigator.serviceWorker.addEventListener('message',event=>{if(event.data?.type==='MAP_STORAGE_WARNING')announce();});await navigator.serviceWorker.ready;announce();return true;}catch{return false;}
  }
  async function workerInfo(){const worker=navigator.serviceWorker?.controller||registration?.active;if(!worker)return {ready:false,tiles:0};return new Promise(resolve=>{const channel=new MessageChannel();const timer=setTimeout(()=>{channel.port1.close();resolve({ready:false,tiles:0});},3000);channel.port1.onmessage=event=>{clearTimeout(timer);channel.port1.close();resolve(event.data);};worker.postMessage({type:'OFFLINE_STATUS'},[channel.port2]);});}
- async function clearMaps(){if(!globalThis.caches)throw Error('La caché no está disponible.');await caches.delete('bus-sevilla-tiles-v1');await caches.delete(MAP_PACKS);const keys=await run('data','readonly',s=>s.getAllKeys());for(const key of keys)if(key.startsWith('map-pack:'))await run('data','readwrite',s=>s.delete(key));announce();}
- return {planMapPack,saveMapPack,savedMapPacks,init,savedLines,savedDataset,saveDataset,saveLine,removeLine,persistence,workerInfo,clearMaps};
+ async function clearMaps(){if(!globalThis.caches)throw Error('La caché no está disponible.');await caches.delete('bus-sevilla-tiles-v1');await caches.delete(MAP_PACKS);const keys=await run('data','readonly',s=>s.getAllKeys());for(const key of keys)if(key.startsWith('map-pack:')||key.startsWith('network-map-pack:'))await run('data','readwrite',s=>s.delete(key));announce();}
+ return {planNetworkMapPack,saveNetworkMapPack,networkMapInfo,planMapPack,saveMapPack,savedMapPacks,init,savedLines,savedDataset,saveDataset,saveLine,removeLine,persistence,workerInfo,clearMaps};
 })();
 if(typeof module!=='undefined')module.exports=BusOffline;

@@ -10,17 +10,17 @@ https://ndj4hfhj4v-web.github.io/lineas-bus-sevilla-gpx/
 
 La web de Netlify es una publicación independiente.
 
-## Uso sin conexión en iPhone
+## Preparación automática y uso sin conexión
 
-1. Abre la web HTTPS en Safari y elige Compartir → Añadir a pantalla de inicio.
-2. Abre el icono instalado mientras tienes Internet. Safari y la app instalada pueden usar almacenes separados: prepara las copias desde el icono que usarás después.
-3. Selecciona la línea y pulsa **Guardar línea y mapas**. Se guardan todos sus sentidos, paradas, trazado completo y GPX en IndexedDB. Espera a que el estado indique que la aplicación está disponible sin Internet.
-4. Espera a que termine la descarga del tipo de mapa seleccionado alrededor de ambos sentidos (niveles 11 a 18, también utilizables con el zoom intermedio y la ampliación a 19). Puede tardar varios minutos. Se puede cancelar y continuar sin repetir imágenes descargadas. La franja guardada no cubre toda Sevilla ni otros tipos de mapa. Los paquetes se conservan aparte de la caché temporal de 384 teselas.
-5. Activa el modo avión, vuelve a abrir desde el mismo icono, pulsa **Ver guardadas** y comprueba el sentido y las paradas antes de salir. Activa la localización del dispositivo para iniciar GPS.
+1. Abre la web HTTPS e instálala en la pantalla de inicio si la vas a utilizar como aplicación.
+2. Abre el icono mientras tienes conexión. La aplicación guarda automáticamente todas las líneas, sentidos, paradas y GPX en IndexedDB y completa el callejero IGN alrededor de toda la red, en niveles de zoom 11 a 18.
+3. Consulta el progreso en Opciones → Información. La primera preparación puede tardar bastante; las peticiones se espacian al menos 250 ms para no saturar el proveedor. Con la red integrada de unas 10.300 imágenes, una descarga desde cero requiere del orden de tres cuartos de hora, además del tiempo de red y almacenamiento. La navegación online no queda bloqueada.
+4. Al ocultar o cerrar la app se pausa el trabajo. Se reanuda al volver y reutiliza cada imagen que ya esté guardada. Se verifican las entradas de la caché antes de declarar la red disponible sin conexión.
+5. Cuando el estado lo confirme, prueba el modo avión desde ese mismo icono. Mapbox es el proveedor inicial (se respeta una elección anterior de IGN); sin conexión se utiliza el callejero IGN guardado. Al volver la conexión se recuperan proveedor y tipo de mapa preferidos.
 
-El Service Worker guarda la interfaz y las librerías incluidas. La caché de mapas, separada de las líneas, conserva como máximo 384 teselas de hasta 512 KiB cada una (límite teórico de imágenes: 192 MiB, sin contar la sobrecarga del navegador). Reutiliza imágenes CORS legibles del IGN; no guarda respuestas opacas, imágenes con instrucciones no-store/private ni mapas de otros proveedores. No hace descargas masivas ni precarga toda Sevilla. Al llenarse reemplaza las copias más antiguas; iOS también puede eliminar datos por falta de espacio. Se solicita almacenamiento persistente, sin prometer que el sistema lo conceda. Las zonas ausentes muestran **Mapa no guardado**, con el trazado y las paradas encima.
+Los mapas preparados se conservan en una caché protegida separada de las 384 imágenes temporales. Se deduplican las calles compartidas por varias líneas y se admite un máximo de 24.000 imágenes protegidas, sujeto al espacio que permita el navegador. Solo se guardan imágenes CORS válidas de IGN; los recursos de Mapbox no se precargan. Los paquetes anteriores se reutilizan. El gestor evita descargas concurrentes entre pestañas mediante Web Locks cuando está disponible, solicita almacenamiento persistente y vuelve a comprobar los mapas al abrir la app. El sistema operativo o el usuario pueden eliminar los datos: la disponibilidad permanente no está garantizada.
 
-El botón **Borrar mapas guardados** conserva tus líneas. **Eliminar copia de esta línea** elimina solo la línea elegida. Las consultas en directo se guardan como última copia local. Actualizar datos durante una navegación no sustituye el recorrido que estás siguiendo.
+Los controles manuales de guardar, filtrar copias y borrar mapas se han retirado. El listado de paradas permanece en Opciones → Paradas del recorrido y la exportación GPX sigue en su apartado. Las consultas de datos actualizadas preparan automáticamente la nueva cobertura sin sustituir el recorrido que se está siguiendo.
 
 ## Funciones
 
@@ -28,7 +28,7 @@ El botón **Borrar mapas guardados** conserva tus líneas. **Eliminar copia de e
 - Interfaz compacta, sin bloques de instrucciones ni descarga conjunta de toda la red.
 - Mapa a pantalla completa al abrir el recorrido con GPS, con giro según la dirección del desplazamiento.
 - Solo un botón de regreso al tocar el mapa, que se oculta tras cinco segundos, y un icono de ubicación para recuperar el seguimiento.
-- Exportación de un GPX del recorrido seleccionado, con trazado y paradas.
+- Exportación GPX de la línea, con archivos separados por sentido, trazado y paradas.
 - Actualización de trazados y paradas desde IDE Sevilla; copia integrada si la consulta falla.
 - Instalación desde navegadores compatibles mediante un manifiesto web.
 
@@ -98,7 +98,7 @@ Durante la navegación se solicita Screen Wake Lock. Se recupera al volver a la 
 
 Ajustes permite elegir IGN o Mapbox. Mapbox GL JS 3.33.0 se carga desde su CDN oficial solo al seleccionar Mapbox; utiliza un token público de lectura, sujeto a los límites y tarifas de la cuenta. La instancia se reutiliza al alternar proveedores o estilos para evitar reinicializaciones innecesarias. El canvas vectorial se sincroniza con la cámara Leaflet (zoom menos uno por la diferencia entre teselas de 256 y 512 px, rumbo con signo inverso); Leaflet conserva recorridos, paradas, controles y GPS.
 
-Mapbox utiliza sus estilos oficiales: Streets durante el día y Dark v11 en el callejero nocturno. No se personalizan sus colores. Vista aérea y topográfico conservan sus estilos originales. El SDK y los recursos de Mapbox no se precargan ni se añaden a las cachés offline de la app. Los paquetes guardados siguen utilizando IGN, que se muestra al perder la conexión. Se conserva la preferencia Mapbox para recuperar el proveedor al volver a tener red. Un fallo de carga o de WebGL deja IGN visible.
+Mapbox utiliza sus estilos oficiales: Streets durante el día y Dark v11 en el callejero nocturno. No se personalizan sus colores. Vista aérea y topográfico conservan sus estilos originales. El SDK y los recursos de Mapbox no se precargan ni se añaden a las cachés offline de la app. La preparación automática guarda el callejero IGN de toda la red, que se muestra al perder la conexión. Se conserva la preferencia Mapbox para recuperar el proveedor al volver a tener red. Un fallo de carga o de WebGL deja IGN visible.
 
 El token público se configura en la variable de repositorio de GitHub Actions `MAPBOX_PUBLIC_TOKEN`. El flujo `publish-pages.yml` genera el HTML y el ZIP en el despliegue; el token no forma parte de los archivos versionados. Un build local sin esa variable mantiene IGN disponible y muestra Mapbox como pendiente de configuración. GitHub Pages utiliza GitHub Actions como origen de publicación.
 

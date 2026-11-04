@@ -1,4 +1,4 @@
-const $=id=>document.getElementById(id);let features=[],groups=[],selected='',current=null,routeLayer=null,stopMarkers=[],stopMarkerRadius=null,background=null,routeArrowsController=null,savedOnly=false,savedLines=new Map();
+const $=id=>document.getElementById(id);let features=[],groups=[],selected='',current=null,routeLayer=null,stopMarkers=[],stopMarkerRadius=null,background=null,routeArrowsController=null,automaticNetwork=null,latestOfflineDataset=null,savedOnly=false,savedLines=new Map();
 const MAP_BACKGROUNDS={street:{service:'ign-base',layer:'IGNBaseTodo'},aerial:{service:'pnoa-ma',layer:'OI.OrthoimageCoverage'},topographic:{service:'mapa-raster',layer:'MTN'}};
 function validMapType(value){return ['street','aerial','topographic'].includes(value)?value:'street';}
 function readMapType(){try{return validMapType(localStorage.getItem('bus-sevilla-map-type'));}catch{return 'street';}}
@@ -14,9 +14,9 @@ function loadMapboxSdk(doc=document,win=window){
  mapboxSdkPromise=new Promise((resolve,reject)=>{const css=doc.createElement('link');css.rel='stylesheet';css.href='https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.css';doc.head.append(css);const script=doc.createElement('script');script.src='https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.js';script.async=true;const timer=win.setTimeout(()=>{script.remove();reject(Error('Mapbox no respondió.'));},20000);script.onload=()=>{win.clearTimeout(timer);win.mapboxgl?resolve(win.mapboxgl):reject(Error('Mapbox no está disponible.'));};script.onerror=()=>{win.clearTimeout(timer);script.remove();reject(Error('No se ha podido cargar Mapbox.'));};doc.head.append(script);}).catch(error=>{mapboxSdkPromise=null;throw error;});return mapboxSdkPromise;
 }
 function initMapProvider(map,ign,env={window,document,navigator,storage:()=>localStorage,loadSdk:()=>loadMapboxSdk()}){
- const accessToken=env.accessToken??MAPBOX_PUBLIC_TOKEN,win=env.window,doc=env.document,root=doc.documentElement,select=doc.getElementById('mapProvider'),status=doc.getElementById('mapProviderStatus'),key='bus-copilot-map-provider';let preferred='ign',renderer=null,host=null,pending=null,ready=false,disposed=false,generation=0,frame=null,styleKey='',credited=false,loadTimer=null,failed=false;
+ const accessToken=env.accessToken??MAPBOX_PUBLIC_TOKEN,win=env.window,doc=env.document,root=doc.documentElement,select=doc.getElementById('mapProvider'),status=doc.getElementById('mapProviderStatus'),key='bus-copilot-map-provider';let preferred='mapbox',renderer=null,host=null,pending=null,ready=false,disposed=false,generation=0,frame=null,styleKey='',credited=false,loadTimer=null,failed=false;
  const attribution='<a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <a href="https://apps.mapbox.com/feedback/" target="_blank" rel="noopener">Mejorar mapa</a>';
- try{preferred=env.storage().getItem(key)==='mapbox'?'mapbox':'ign';}catch{}
+ try{preferred=env.storage().getItem(key)==='ign'?'ign':'mapbox';}catch{}
  function setStatus(text){status.textContent=text;status.hidden=!text;}
  function type(){return root.dataset.mapType||'street';}
  function dark(){return root.dataset.theme==='night';}
@@ -114,10 +114,10 @@ function selectableRoutes(group){
  for(const f of [...group.items].sort((a,b)=>Number(a.attributes.Ruta)-Number(b.attributes.Ruta))){const dest=String(f.attributes.DestinoRuta||f.stops?.at(-1)?.attributes.Nodo||f.attributes.NombreRuta).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[.\s]+/g,' ').trim().toUpperCase();if(!destinations.has(dest))destinations.set(dest,f);}
  return [...destinations.values()];
 }
-async function useSavedMapForLine(id){if(navigator.onLine!==false)return;try{const packs=await BusOffline.savedMapPacks(id);if(selected!==id||!packs.length||packs.some(p=>p.type===readMapType()))return;$('mapType').value=packs[0].type;$('mapType').dispatchEvent(new Event('change'));}catch{}}
+async function useSavedMapForLine(id){if(navigator.onLine!==false||$('mapType').disabled)return;try{const packs=await BusOffline.savedMapPacks(id);if(selected!==id||!packs.length||packs.some(p=>p.type===readMapType()))return;$('mapType').value=packs[0].type;$('mapType').dispatchEvent(new Event('change'));}catch{}}
 function choose(id,navigate=false){if(routeNavigator.isActive())routeNavigator.exit();selected=id;const g=groups.find(g=>g.id===id);$('name').textContent=g.name;$('badge').textContent=g.id;setBadgeColor(g.items[0].attributes.Color);$('variant').replaceChildren();selectableRoutes(g).forEach((f,i)=>{const o=document.createElement('option');o.value=i;o.textContent=f.attributes.NombreRuta||f.attributes.DestinoRuta;$('variant').append(o)});$('variant').disabled=false;$('badge').hidden=false;$('senseBar').hidden=false;renderList();show();closeMenus(true);if(navigate)routeNavigator.start();}
 function show(){clearGpxDownloads();const g=groups.find(g=>g.id===selected);current=selectableRoutes(g)[Number($('variant').value)];if(map){if(routeLayer)map.removeLayer(routeLayer);stopMarkers=[];stopMarkerRadius=null;routeLayer=L.featureGroup().addTo(map);for(const path of current.geometry.paths){const pts=path.map(c=>[c[1],c[0]]);L.polyline(pts,{color:'#315e46',weight:5,opacity:.9}).addTo(routeLayer);L.circleMarker(pts[0],{radius:6,color:'#fff',weight:2,fillColor:'#2d684d',fillOpacity:1}).bindTooltip('Inicio del segmento').addTo(routeLayer);L.circleMarker(pts.at(-1),{radius:6,color:'#fff',weight:2,fillColor:'#b35c37',fillOpacity:1}).bindTooltip('Final del segmento').addTo(routeLayer);}for(const [i,s] of (current.stops||[]).entries()){const label=document.createElement('span');label.textContent=(i+1)+'. '+s.attributes.Nombre+' (parada '+s.attributes.Nodo+')';stopMarkers.push(L.circleMarker([s.geometry.y,s.geometry.x],{radius:5,color:'#244b3b',weight:2,fillColor:'#e2f3a2',fillOpacity:1}).bindTooltip(label).addTo(routeLayer));}
-map.fitBounds(routeLayer.getBounds(),{paddingTopLeft:[24,140],paddingBottomRight:[24,38]});routeArrowsController?.refresh();}$('stopList').replaceChildren();for(const s of current.stops||[]){const li=document.createElement('li');li.textContent=s.attributes.Nombre+' · parada '+s.attributes.Nodo;$('stopList').append(li);}$('stopCount').textContent=(current.stops||[]).length+' paradas en este recorrido';$('stats').textContent=distance(current).toLocaleString('es',{maximumFractionDigits:1})+' km · '+current.geometry.paths.reduce((n,p)=>n+p.length,0)+' puntos · '+(current.stops||[]).length+' paradas';$('download').disabled=false;$('saveOffline').disabled=false;$('forgetOffline').hidden=!savedLines.has(selected);routeNavigator.routeChanged();updateStopMarkerSizes();useSavedMapForLine(selected);}
+map.fitBounds(routeLayer.getBounds(),{paddingTopLeft:[24,140],paddingBottomRight:[24,38]});routeArrowsController?.refresh();}$('stopList').replaceChildren();for(const s of current.stops||[]){const li=document.createElement('li');li.textContent=s.attributes.Nombre+' · parada '+s.attributes.Nodo;$('stopList').append(li);}$('stopCount').textContent=(current.stops||[]).length+' paradas en este recorrido';$('stats').textContent=distance(current).toLocaleString('es',{maximumFractionDigits:1})+' km · '+current.geometry.paths.reduce((n,p)=>n+p.length,0)+' puntos · '+(current.stops||[]).length+' paradas';$('download').disabled=false;routeNavigator.routeChanged();updateStopMarkerSizes();useSavedMapForLine(selected);}
 let gpxDownloadUrls=[];
 function clearGpxDownloads(){for(const url of gpxDownloadUrls)setTimeout(()=>URL.revokeObjectURL(url),30000);gpxDownloadUrls=[];$('gpxFiles').replaceChildren();$('gpxFiles').hidden=true;$('downloadStatus').hidden=true;$('downloadStatus').textContent='';}
 function lineGpxRoutes(group,route){const routes=selectableRoutes(group),variant=routes.filter(f=>f.attributes.Sublinea===route?.attributes.Sublinea);return variant.length?variant:routes;}
@@ -138,53 +138,49 @@ async function load(refresh=false){
   try{if(!data){const r=await fetch('snapshot.json');if(!r.ok)throw Error();data=await r.json();}validFeatures(data);message='Sin datos nuevos. Copia local del '+new Date(data.fetchedAt).toLocaleDateString('es-ES');}
   catch{$('dataStatus').dataset.state='error';$('status').textContent='No se pueden cargar los datos. Comprueba la conexión y pulsa Actualizar.';$('refresh').disabled=false;return;}
  }
- if(state==='cached'&&savedLines.size){const ids=new Set(savedLines.keys());data={...data,features:[...data.features.filter(f=>!ids.has(label(f))),...[...savedLines.values()].flatMap(line=>line.items)]};}
+ latestOfflineDataset=data;automaticNetwork?.setData(data);
  if(routeNavigator.isActive()&&current){$('dataStatus').dataset.state=state;$('status').textContent='Datos disponibles para la próxima selección. Tu navegación continúa con el recorrido actual.';$('refresh').disabled=false;return;}
  features=validFeatures(data);const index=new Map;for(const f of features){const id=label(f);if(!index.has(id))index.set(id,{id,name:f.attributes.NombreLinea||id,items:[]});index.get(id).items.push(f);}groups=[...index.values()].sort((a,b)=>a.id.localeCompare(b.id,'es',{numeric:true}));$('dataStatus').dataset.state=state;$('status').textContent=groups.length+' líneas · '+features.length+' recorridos · '+message;if(index.has(selected))choose(selected);else{renderList();routeNavigator.routeChanged();}$('refresh').disabled=false;}
 const routeNavigator=createRouteNavigator(map,()=>current,updateStopMarkerSizes);
 $('search').oninput=renderList;$('variant').onchange=()=>{if(routeNavigator.isActive())routeNavigator.exit();show();routeNavigator.start();};$('refresh').onclick=()=>load(true);$('download').onclick=downloadLineGpx;startOfflineApp();
 
-let mapDownload=null,mapSaveProgress='';
-async function updateOfflineStatus(note=''){
- const info=await BusOffline.workerInfo(),amount=savedLines.size;
- let text=(navigator.onLine===false?'Sin conexión · ':'')+amount+(amount===1?' línea guardada. ':' líneas guardadas. ')+(info.ready?'Aplicación disponible sin Internet.':'Uso sin conexión no disponible.');
- text+=' Mapas de líneas: '+(info.packTiles||0)+' fragmentos guardados.';
- if(selected){try{const packs=await BusOffline.savedMapPacks(selected);if(packs.length)text+=' Línea '+selected+': '+packs.map(p=>({street:'callejero',aerial:'vista aérea',topographic:'topográfico'}[p.type])).join(', ')+'.';}catch{}}
- if(mapSaveProgress)text=mapSaveProgress+' '+text;else if(note)text=note+' '+text;
- $('offlineStatus').textContent=text;
+function offlineNetworkFingerprint(data){let hash=2166136261;const value=JSON.stringify(data.features);for(let i=0;i<value.length;i++){hash^=value.charCodeAt(i);hash=Math.imul(hash,16777619);}return (hash>>>0).toString(16)+':'+value.length;}
+function createAutomaticNetwork(env){
+ const {window:win,document:doc,navigator:nav,bus}=env;let data=null,key='',completedKey='',controller=null,busy=false,destroyed=false,timer=null,shellReady=null,stage='waiting',progress={completed:0,total:0},retry=0,lastError='';
+ const output=doc.getElementById('offlineStatus'),meter=doc.getElementById('autoOfflineProgress');
+ function visible(){return doc.visibilityState!=='hidden';}
+ function render(){const amount=new Set((data?.features||[]).map(f=>String(f.attributes.LabelLinea||f.attributes.Linea))).size,percent=progress.total?Math.floor(progress.completed/progress.total*100):0;let text=shellReady===false?'Este navegador no permite preparar la aplicación para abrirla sin conexión.':stage==='ready'?amount+' líneas y callejero IGN disponibles sin conexión.':stage==='routes'?'Guardando todas las líneas y paradas…':stage==='planning'?'Comprobando los mapas de toda la red…':stage==='maps'?'Preparando el callejero IGN de toda la red: '+percent+'%.':stage==='paused'?'Preparación en pausa'+(progress.total?' ('+percent+'%)':'')+'. Continuará al volver a abrir la app con conexión.':stage==='error'?'No se ha podido completar la preparación. '+lastError+' Se volverá a intentar.':'Preparando disponibilidad sin conexión…';if(output.textContent!==text)output.textContent=text;meter.hidden=!progress.total||stage==='ready';meter.max=progress.total||1;meter.value=progress.completed;}
+ function clearTimer(){if(timer!==null)win.clearTimeout(timer);timer=null;}
+ function schedule(delay=0){clearTimer();if(destroyed||!visible()||shellReady!==true||!data)return;timer=win.setTimeout(()=>{timer=null;run();},delay);}
+ async function run(){if(destroyed||busy||!data||!visible()||shellReady!==true)return;const job=data,jobKey=key;controller=new AbortController();const signal=controller.signal;busy=true;
+  function check(){if(signal.aborted||destroyed||jobKey!==key)throw Error('Preparación pausada.');}
+  async function work(){check();stage='routes';render();await bus.persistence();check();await env.saveRoutes(job,signal);check();stage='planning';render();
+   const result=await bus.saveNetworkMapPack(job.features,env.template(),{signal,fingerprint:jobKey,onProgress:p=>{if(!signal.aborted&&jobKey===key){progress=p;stage='maps';render();}}});check();progress={completed:result.count,total:result.count};completedKey=jobKey;stage='ready';retry=0;render();}
+  try{if(nav.locks?.request)await nav.locks.request('bus-copilot-network-preparation',{signal},work);else await work();}
+  catch(error){if(jobKey===key){if(signal.aborted||nav.onLine===false||!visible()){stage='paused';}else{stage='error';lastError=String(error?.message||error).slice(0,160);retry++;}render();}}
+  finally{busy=false;controller=null;if(destroyed)return;if(key!==jobKey)schedule();else if(stage!=='ready'&&nav.onLine!==false&&visible())schedule(Math.min(300000,10000*2**Math.min(retry,5)));}
+ }
+ function resume(){if(!visible()){clearTimer();controller?.abort();if(stage!=='ready')stage='paused';render();return;}if(nav.onLine===false){clearTimer();controller?.abort();if(stage!=='ready')stage='paused';render();if(!busy&&data&&completedKey!==key)schedule();return;}if(completedKey!==key)schedule();else render();}
+ win.addEventListener('online',resume);win.addEventListener('offline',resume);win.addEventListener('pageshow',resume);win.addEventListener('pagehide',()=>{clearTimer();controller?.abort();});doc.addEventListener('visibilitychange',resume);render();
+ return {setData(value){const next=offlineNetworkFingerprint(value);data=value;if(next!==key){key=next;completedKey='';progress={completed:0,total:0};controller?.abort();stage='waiting';schedule();}render();},setShellReady(value){shellReady=!!value;render();if(shellReady)schedule();},refreshStatus:render,destroy(){destroyed=true;clearTimer();controller?.abort();win.removeEventListener('online',resume);win.removeEventListener('offline',resume);win.removeEventListener('pageshow',resume);doc.removeEventListener('visibilitychange',resume);}};
 }
+async function saveAutomaticRoutes(data,signal){
+ const routes=validFeatures(data),index=new Map();await BusOffline.saveDataset(data);for(const f of routes){const id=label(f);if(!index.has(id))index.set(id,{id,name:f.attributes.NombreLinea||id,items:[]});index.get(id).items.push(f);}
+ for(const group of index.values()){if(signal.aborted)throw Error('Preparación pausada.');const items=selectableRoutes(group),line={...group,automatic:true,savedAt:new Date().toISOString(),files:items.map(f=>({name:routeFilename(f,routes)+'.gpx',content:gpx([f])}))};await BusOffline.saveLine(line);savedLines.set(line.id,line);await new Promise(resolve=>setTimeout(resolve,0));}
+}
+async function updateOfflineStatus(){automaticNetwork?.refreshStatus();}
 async function startOfflineApp(){
- try{savedLines=new Map((await BusOffline.savedLines()).map(line=>[line.id,line]));}catch{$('offlineStatus').textContent='El almacenamiento local no está disponible. No cierres la app si vas a perder conexión.';}
- await load();updateOfflineStatus();
- BusOffline.init().then(ready=>{if(ready&&background)background.redraw();updateOfflineStatus();});
- if(navigator.onLine!==false)load(true);
+ try{savedLines=new Map((await BusOffline.savedLines()).map(line=>[line.id,line]));}catch{}
+ await load();updateOfflineStatus();BusOffline.init().then(ready=>{if(ready&&background)background.redraw();automaticNetwork?.setShellReady(ready);});if(navigator.onLine!==false)load(true);
 }
-$('saveOffline').onclick=async()=>{
- if(mapDownload){mapDownload.abort();return;}
- const group=groups.find(g=>g.id===selected);if(!group)return;
- const button=$('saveOffline'),type=readMapType(),mapName={street:'callejero',aerial:'vista aérea',topographic:'topográfico'}[type],controller=new AbortController();
- mapDownload=controller;button.disabled=false;button.textContent='Cancelar descarga de mapas';let lineSaved=false;const persistence=BusOffline.persistence();
- try{
-  const items=selectableRoutes(group),line={id:group.id,name:group.name,items:group.items,savedAt:new Date().toISOString(),files:items.map(f=>({name:routeFilename(f,features)+'.gpx',content:gpx([f])}))};
-  await BusOffline.saveLine(line);lineSaved=true;savedLines.set(line.id,line);$('forgetOffline').hidden=false;
-  await BusOffline.saveMapPack(group.id,type,items,mapTileUrl(type),{signal:controller.signal,onProgress:progress=>{mapSaveProgress='Línea '+group.id+' · '+mapName+': '+progress.completed+'/'+progress.total+' mapas. Mantén la app abierta hasta que termine.';$('offlineStatus').textContent=mapSaveProgress;}});
-  mapSaveProgress='';const persistent=await persistence;
-  await updateOfflineStatus('Línea '+group.id+' y mapa '+mapName+' de IGN guardados alrededor de ambos sentidos.'+(persistent?'':' El navegador puede eliminar las copias si necesita espacio.'));
- }catch(error){mapSaveProgress='';await updateOfflineStatus((lineSaved?'La línea está guardada, pero los mapas no están completos. ':'No se ha podido guardar la línea. ')+(error?.message||'Comprueba la conexión y el espacio disponible.')+' Vuelve a guardar para continuar sin repetir las descargas ya completadas.');}
- finally{mapDownload=null;mapSaveProgress='';button.disabled=false;button.textContent='Guardar línea y mapas';}
-};
-$('savedOnly').onclick=()=>{savedOnly=!savedOnly;$('savedOnly').setAttribute('aria-pressed',String(savedOnly));$('savedOnly').textContent=savedOnly?'Ver todas las líneas':'Ver guardadas';renderList();openMenu('lines');};
-$('forgetOffline').onclick=async()=>{try{await BusOffline.removeLine(selected);savedLines.delete(selected);$('forgetOffline').hidden=true;renderList();await updateOfflineStatus('Copia de la línea eliminada.');}catch{await updateOfflineStatus('No se ha podido eliminar la copia.');}};
-$('clearMaps').onclick=async()=>{mapDownload?.abort();try{await BusOffline.clearMaps();await updateOfflineStatus('Mapas eliminados; tus líneas y paradas siguen guardadas.');}catch{await updateOfflineStatus('No se ha podido vaciar la caché de mapas.');}};
-window.addEventListener('online',()=>updateOfflineStatus());window.addEventListener('offline',()=>updateOfflineStatus());window.addEventListener('bus-offline-change',()=>updateOfflineStatus());
 
-function showOptionsView(view='main',focus=true){const previous=$('optionsPanel').dataset.view;$('optionsMain').hidden=view!=='main';$('settingsView').hidden=view!=='settings';$('offlineView').hidden=view!=='offline';$('gpxView').hidden=view!=='gpx';$('infoView').hidden=view!=='info';$('installView').hidden=view!=='install';$('optionsBack').hidden=view==='main';const title={main:'Opciones',settings:'Ajustes',offline:'Líneas sin conexión',gpx:'Archivos GPX',info:'Información',install:'Instalar aplicación'}[view];$('optionsTitle').textContent=title;$('optionsPanel').setAttribute('aria-label',title);$('optionsPanel').dataset.view=view;$('openSettings').setAttribute('aria-expanded',String(view==='settings'));$('openOffline').setAttribute('aria-expanded',String(view==='offline'));$('openGpx').setAttribute('aria-expanded',String(view==='gpx'));$('openInfo').setAttribute('aria-expanded',String(view==='info'));$('openInstall').setAttribute('aria-expanded',String(view==='install'));if(focus)$(view!=='main'?'optionsBack':previous==='offline'?'openOffline':previous==='gpx'?'openGpx':previous==='info'?'openInfo':previous==='install'?'openInstall':'openSettings').focus({preventScroll:true});}
+function showOptionsView(view='main',focus=true){const previous=$('optionsPanel').dataset.view;$('optionsMain').hidden=view!=='main';$('settingsView').hidden=view!=='settings';$('offlineView').hidden=view!=='offline';$('gpxView').hidden=view!=='gpx';$('infoView').hidden=view!=='info';$('installView').hidden=view!=='install';$('optionsBack').hidden=view==='main';const title={main:'Opciones',settings:'Ajustes',offline:'Paradas del recorrido',gpx:'Archivos GPX',info:'Información',install:'Instalar aplicación'}[view];$('optionsTitle').textContent=title;$('optionsPanel').setAttribute('aria-label',title);$('optionsPanel').dataset.view=view;$('openSettings').setAttribute('aria-expanded',String(view==='settings'));$('openOffline').setAttribute('aria-expanded',String(view==='offline'));$('openGpx').setAttribute('aria-expanded',String(view==='gpx'));$('openInfo').setAttribute('aria-expanded',String(view==='info'));$('openInstall').setAttribute('aria-expanded',String(view==='install'));if(focus)$(view!=='main'?'optionsBack':previous==='offline'?'openOffline':previous==='gpx'?'openGpx':previous==='info'?'openInfo':previous==='install'?'openInstall':'openSettings').focus({preventScroll:true});}
 function closeMenus(restoreFocus=false){showOptionsView('main',false);const activePanel=!$('linePanel').hidden?'lines':!$('optionsPanel').hidden?'options':null;$('linePanel').hidden=true;$('optionsPanel').hidden=true;$('selectLine').setAttribute('aria-expanded','false');$('optionsToggle').setAttribute('aria-expanded','false');$('gpsDetail').dataset.menuOpen='false';routeNavigator.revealControls();if(restoreFocus&&activePanel)$(activePanel==='lines'?'selectLine':'optionsToggle').focus({preventScroll:true});}
 function openMenu(which){const panel=$(which==='lines'?'linePanel':'optionsPanel'),wasOpen=!panel.hidden;closeMenus();if(wasOpen)return;panel.hidden=false;$(which==='lines'?'selectLine':'optionsToggle').setAttribute('aria-expanded','true');$('gpsDetail').dataset.menuOpen='true';routeNavigator.revealControls();$(which==='lines'?'closeLines':'closeOptions').focus({preventScroll:true});}
 $('selectLine').onclick=()=>openMenu('lines');$('optionsToggle').onclick=()=>openMenu('options');$('closeLines').onclick=()=>closeMenus(true);$('closeOptions').onclick=()=>closeMenus(true);$('openSettings').onclick=()=>showOptionsView('settings');$('optionsBack').onclick=()=>showOptionsView('main');$('openOffline').onclick=()=>showOptionsView('offline');$('openGpx').onclick=()=>showOptionsView('gpx');$('openInfo').onclick=()=>showOptionsView('info');$('openInstall').onclick=()=>showOptionsView('install');
 document.addEventListener('pointerdown',event=>{if(event.target.closest('#map'))closeMenus();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&(!$('linePanel').hidden||!$('optionsPanel').hidden)){event.preventDefault();if($('optionsPanel').dataset.view!=='main')showOptionsView('main');else closeMenus(true);}});
-$('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&!['closeOptions','savedOnly','openSettings','openOffline','openGpx','openInfo','openInstall','installAction','retryWake','retryGps','gpsDiagnosticButton','optionsBack','download','saveOffline'].includes(button.id))closeMenus(true);});
+$('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&!['closeOptions','openSettings','openOffline','openGpx','openInfo','openInstall','installAction','retryWake','retryGps','gpsDiagnosticButton','optionsBack','download'].includes(button.id))closeMenus(true);});
 
 function initMapViewport(map){
  const viewport=window.visualViewport,style=document.documentElement.style;let frame=null,lastWidth=0,lastHeight=0;
@@ -221,16 +217,18 @@ function initNightMode(now=()=>new Date()){
 initNightMode();
 
 function initMapType(layer,initialType='street'){
- const select=document.getElementById('mapType'),root=document.documentElement,key='bus-sevilla-map-type';let type=validMapType(initialType);
+ const select=document.getElementById('mapType'),root=document.documentElement,key='bus-sevilla-map-type';let preferred=validMapType(initialType),type=preferred;
  function apply(value){const next=validMapType(value);if(next!==type){layer?.setUrl(mapTileUrl(next));type=next;}select.value=type;root.dataset.mapType=type;}
- function change(){apply(select.value);try{localStorage.setItem(key,type);}catch{}}
- function stored(event){if(event.key===key||event.key===null)apply(event.newValue);}
- select.addEventListener('change',change);window.addEventListener('storage',stored);apply(type);
- return ()=>{select.removeEventListener('change',change);window.removeEventListener('storage',stored);};
+ function connected(){const offline=window.navigator?.onLine===false;select.disabled=offline;apply(offline?'street':preferred);}
+ function change(){preferred=validMapType(select.value);try{localStorage.setItem(key,preferred);}catch{}connected();}
+ function stored(event){if(event.key===key||event.key===null){preferred=validMapType(event.newValue);connected();}}
+ select.addEventListener('change',change);window.addEventListener('storage',stored);window.addEventListener('online',connected);window.addEventListener('offline',connected);connected();
+ return ()=>{select.removeEventListener('change',change);window.removeEventListener('storage',stored);window.removeEventListener('online',connected);window.removeEventListener('offline',connected);};
 }
 initMapType(background,initialMapType);
 initMapProvider(map,background);
 routeArrowsController=initRouteArrows(map,()=>current);
+automaticNetwork=createAutomaticNetwork({window,document,navigator,bus:BusOffline,saveRoutes:saveAutomaticRoutes,template:()=>mapTileUrl('street')});if(latestOfflineDataset)automaticNetwork.setData(latestOfflineDataset);
 // Start location independently of selecting or downloading a bus line.
 routeNavigator.start();
 
@@ -241,7 +239,7 @@ function initInstallation(win=window,nav=navigator,doc=document){
  function installed(){return !!(mode.matches||nav.standalone);}
  function render(){const active=installed();entry.textContent=active?'Aplicación instalada':'Instalar aplicación';action.hidden=active||accepted||!pending;action.disabled=busy;action.textContent=busy?'Abriendo instalación…':'Instalar aplicación';
   status.textContent=active?'Ya estás usando la aplicación desde su icono.':accepted?'Instalación solicitada. Busca «Bus Co-Pilot» entre tus aplicaciones.':ios?'Añádela desde Safari para abrirla con su propio icono.':pending?'Instala Bus Co-Pilot para abrirla en una ventana independiente.':'Puedes instalarla desde el menú de tu navegador.';
-  steps.textContent=active?'Para usarla sin conexión, guarda la línea y sus mapas desde esta aplicación y espera a que termine.':ios?'En Safari: abre el menú Compartir y elige «Añadir a pantalla de inicio». Activa «Abrir como app web» si aparece y pulsa «Añadir». Después abre el nuevo icono y guarda ahí tus líneas para usarlas sin conexión.':android?'En Chrome: abre el menú ⋮ y busca «Añadir a pantalla de inicio» o «Instalar aplicación». Si estás en un navegador integrado, abre esta web en Chrome.':'En Chrome o Edge: utiliza el icono de instalación de la barra de direcciones o la opción «Instalar» del menú del navegador. Si no aparece, prueba con un navegador compatible.';
+  steps.textContent=active?'La red se prepara automáticamente para usarla sin conexión. Puedes comprobar el progreso en Información.':ios?'En Safari: abre el menú Compartir y elige «Añadir a pantalla de inicio». Activa «Abrir como app web» si aparece y pulsa «Añadir». Después abre el nuevo icono y espera a que termine la preparación automática.':android?'En Chrome: abre el menú ⋮ y busca «Añadir a pantalla de inicio» o «Instalar aplicación». Si estás en un navegador integrado, abre esta web en Chrome.':'En Chrome o Edge: utiliza el icono de instalación de la barra de direcciones o la opción «Instalar» del menú del navegador. Si no aparece, prueba con un navegador compatible.';
  }
  function before(event){event.preventDefault();pending=event;accepted=false;render();}
  function done(){pending=null;accepted=true;busy=false;render();}
