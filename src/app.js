@@ -3,6 +3,65 @@ const MAP_BACKGROUNDS={street:{service:'ign-base',layer:'IGNBaseTodo'},aerial:{s
 function validMapType(value){return ['street','aerial','topographic'].includes(value)?value:'street';}
 function readMapType(){try{return validMapType(localStorage.getItem('bus-sevilla-map-type'));}catch{return 'street';}}
 function mapTileUrl(type){const source=MAP_BACKGROUNDS[validMapType(type)];return 'https://www.ign.es/wmts/'+source.service+'?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER='+source.layer+'&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}';}
+
+// Optional Mapbox renderer. IGN remains the only source used by offline map packs.
+const MAPBOX_PUBLIC_TOKEN="__BUS_COPILOT_MAPBOX_PUBLIC_TOKEN__";
+function mapboxCamera(map){const center=map.getCenter();return {center:[center.lng,center.lat],zoom:map.getZoom()-1,bearing:-(map.getBearing?map.getBearing():0),pitch:0};}
+function mapboxStyle(type){return 'mapbox://styles/mapbox/'+({street:'streets-v12',aerial:'satellite-streets-v12',topographic:'outdoors-v12'}[type]||'streets-v12');}
+function applyMapboxNight(renderer,type){
+ if(type==='aerial')return;
+ for(const layer of renderer.getStyle().layers||[]){const source=layer['source-layer']||'',id=layer.id,building=source==='building',road=source==='road'||source==='aeroway',water=/water|depth/.test(source);
+  if(layer.type==='background')renderer.setPaintProperty(id,'background-color','#252525');
+  else if(layer.type==='fill'){renderer.setPaintProperty(id,'fill-color',building?'#000000':road?'#929292':water?'#182027':'#252525');renderer.setPaintProperty(id,'fill-opacity',1);renderer.setPaintProperty(id,'fill-outline-color',building?'#000000':water?'#182027':'#252525');}
+  else if(layer.type==='line'){renderer.setPaintProperty(id,'line-color',building?'#000000':road?(/case|casing|outline/.test(id)?'#4a4a4a':'#a0a0a0'):water?'#182027':'#3c3c3c');renderer.setPaintProperty(id,'line-opacity',1);}
+  else if(layer.type==='fill-extrusion'){renderer.setLayoutProperty(id,'visibility','none');}
+  else if(layer.type==='symbol'){renderer.setPaintProperty(id,'text-color','#dedede');renderer.setPaintProperty(id,'text-halo-color','#171717');renderer.setPaintProperty(id,'text-halo-width',1.2);renderer.setPaintProperty(id,'icon-opacity',0);}
+  else if(layer.type==='hillshade')renderer.setLayoutProperty(id,'visibility','none');
+ }
+}
+let mapboxSdkPromise;
+function loadMapboxSdk(doc=document,win=window){
+ if(win.mapboxgl)return Promise.resolve(win.mapboxgl);if(mapboxSdkPromise)return mapboxSdkPromise;
+ mapboxSdkPromise=new Promise((resolve,reject)=>{const css=doc.createElement('link');css.rel='stylesheet';css.href='https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.css';doc.head.append(css);const script=doc.createElement('script');script.src='https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.js';script.async=true;const timer=win.setTimeout(()=>{script.remove();reject(Error('Mapbox no respondió.'));},20000);script.onload=()=>{win.clearTimeout(timer);win.mapboxgl?resolve(win.mapboxgl):reject(Error('Mapbox no está disponible.'));};script.onerror=()=>{win.clearTimeout(timer);script.remove();reject(Error('No se ha podido cargar Mapbox.'));};doc.head.append(script);}).catch(error=>{mapboxSdkPromise=null;throw error;});return mapboxSdkPromise;
+}
+function initMapProvider(map,ign,env={window,document,navigator,storage:()=>localStorage,loadSdk:()=>loadMapboxSdk()}){
+ const accessToken=env.accessToken??MAPBOX_PUBLIC_TOKEN,win=env.window,doc=env.document,root=doc.documentElement,select=doc.getElementById('mapProvider'),status=doc.getElementById('mapProviderStatus'),key='bus-copilot-map-provider';let preferred='ign',renderer=null,host=null,pending=null,ready=false,disposed=false,generation=0,frame=null,styleKey='',credited=false,loadTimer=null,failed=false;
+ const attribution='<a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <a href="https://apps.mapbox.com/feedback/" target="_blank" rel="noopener">Mejorar mapa</a>';
+ try{preferred=env.storage().getItem(key)==='mapbox'?'mapbox':'ign';}catch{}
+ function setStatus(text){status.textContent=text;status.hidden=!text;}
+ function type(){return root.dataset.mapType||'street';}
+ function dark(){return root.dataset.theme==='night';}
+ function wantsMapbox(){return preferred==='mapbox'&&env.navigator.onLine!==false;}
+ function clearLoadTimer(){if(loadTimer!==null)win.clearTimeout(loadTimer);loadTimer=null;}
+ function showIgn(message=''){if(!map.hasLayer(ign))ign.addTo(map);if(host)host.style.visibility='hidden';if(credited){map.attributionControl?.removeAttribution(attribution);credited=false;}root.dataset.mapProvider='ign';setStatus(message);}
+ function sync(){frame=null;if(disposed||!renderer||!wantsMapbox())return;try{renderer.jumpTo(mapboxCamera(map));}catch{showIgn('Mapbox no está disponible. Mostrando IGN.');}}
+ function schedule(){if(frame===null)frame=win.requestAnimationFrame(sync);}
+ function showMapbox(){if(disposed||!ready||!wantsMapbox())return;clearLoadTimer();renderer.resize();sync();if(map.hasLayer(ign))map.removeLayer(ign);host.style.visibility='visible';if(!credited){map.attributionControl?.addAttribution(attribution);credited=true;}root.dataset.mapProvider='mapbox';setStatus('');}
+ function style(){if(!renderer)return;const next=type()+'|'+dark();if(next===styleKey)return;styleKey=next;renderer.setStyle(mapboxStyle(type()));}
+ async function apply(){
+  select.value=preferred;if(!map||!ign){select.disabled=true;return;}
+  if(!wantsMapbox()){generation++;showIgn(preferred==='mapbox'?'Sin conexión: se utiliza el mapa de IGN guardado en este dispositivo.':'');return;}
+  if(!accessToken.startsWith('pk.')){showIgn('Mapbox pendiente de configuración. Se mantiene IGN.');return;}
+  if(renderer&&failed){renderer.remove();host?.remove();renderer=host=null;ready=false;failed=false;styleKey='';clearLoadTimer();}
+  if(renderer){style();if(ready)showMapbox();return;}
+  if(pending)return;const token=++generation;setStatus('Cargando Mapbox…');
+  pending=(async()=>{try{const sdk=await env.loadSdk();if(disposed||token!==generation||!wantsMapbox())return;if(!sdk.supported())throw Error('WebGL no disponible');
+   host=doc.createElement('div');host.className='mapbox-background';host.style.visibility='hidden';host.setAttribute('aria-hidden','true');map.getContainer().prepend(host);
+   renderer=new sdk.Map({container:host,accessToken,style:mapboxStyle(type()),...mapboxCamera(map),projection:'mercator',language:'es',interactive:false,attributionControl:false,logoPosition:'bottom-left',antialias:false,fadeDuration:0,renderWorldCopies:false,maxPitch:0});styleKey=type()+'|'+dark();
+   renderer.on('style.load',()=>{if(dark())applyMapboxNight(renderer,type());});
+   renderer.on('load',()=>{ready=true;failed=false;showMapbox();});renderer.on('error',()=>{if(!ready){failed=true;showIgn('No se ha podido cargar Mapbox. Se mantiene IGN.');}});
+   renderer.on('webglcontextlost',()=>{ready=false;failed=true;showIgn('Mapbox ha perdido la imagen. Se mantiene IGN.');});renderer.on('webglcontextrestored',()=>{ready=true;failed=false;showMapbox();});
+   loadTimer=win.setTimeout(()=>{loadTimer=null;if(!ready){failed=true;showIgn('Mapbox está tardando. Se mantiene IGN; puedes volver a seleccionarlo para reintentar.');}},25000);
+  }catch{showIgn('Mapbox no está disponible en este dispositivo. Se mantiene IGN.');}finally{pending=null;if(!disposed&&token!==generation&&wantsMapbox())apply();}})();await pending;
+ }
+ function changed(){preferred=select.value==='mapbox'?'mapbox':'ign';try{env.storage().setItem(key,preferred);}catch{}apply();}
+ function connectivity(){apply();}
+ function styled(){if(renderer&&wantsMapbox())style();}
+ select.addEventListener('change',changed);win.addEventListener('online',connectivity);win.addEventListener('offline',connectivity);map.on('move zoom rotate',schedule);map.on('resize',()=>{if(renderer&&wantsMapbox()){renderer.resize();schedule();}});
+ const observer=new win.MutationObserver(styled);observer.observe(root,{attributes:true,attributeFilter:['data-theme','data-map-type']});apply();
+ return {refresh:apply,destroy(){disposed=true;generation++;clearLoadTimer();observer.disconnect();select.removeEventListener('change',changed);win.removeEventListener('online',connectivity);win.removeEventListener('offline',connectivity);map.off('move zoom rotate',schedule);if(frame!==null)win.cancelAnimationFrame(frame);renderer?.remove();host?.remove();showIgn();}};
+}
+
 const initialMapType=readMapType();
 const map=typeof L!=='undefined'?L.map('map',{rotate:true,rotateControl:false,dragRotate:false,touchRotate:false,shiftKeyRotate:false,zoomControl:false,zoomSnap:0,zoomAnimation:false,fadeAnimation:false,markerZoomAnimation:false}).setView([37.39,-5.99],12):null;
 if(map){
@@ -101,7 +160,7 @@ $('saveOffline').onclick=async()=>{
   await BusOffline.saveLine(line);lineSaved=true;savedLines.set(line.id,line);$('forgetOffline').hidden=false;
   await BusOffline.saveMapPack(group.id,type,items,mapTileUrl(type),{signal:controller.signal,onProgress:progress=>{mapSaveProgress='Línea '+group.id+' · '+mapName+': '+progress.completed+'/'+progress.total+' mapas. Mantén la app abierta hasta que termine.';$('offlineStatus').textContent=mapSaveProgress;}});
   mapSaveProgress='';const persistent=await persistence;
-  await updateOfflineStatus('Línea '+group.id+' y mapa '+mapName+' guardados alrededor de ambos sentidos.'+(persistent?'':' El navegador puede eliminar las copias si necesita espacio.'));
+  await updateOfflineStatus('Línea '+group.id+' y mapa '+mapName+' de IGN guardados alrededor de ambos sentidos.'+(persistent?'':' El navegador puede eliminar las copias si necesita espacio.'));
  }catch(error){mapSaveProgress='';await updateOfflineStatus((lineSaved?'La línea está guardada, pero los mapas no están completos. ':'No se ha podido guardar la línea. ')+(error?.message||'Comprueba la conexión y el espacio disponible.')+' Vuelve a guardar para continuar sin repetir las descargas ya completadas.');}
  finally{mapDownload=null;mapSaveProgress='';button.disabled=false;button.textContent='Guardar línea y mapas';}
 };
@@ -161,6 +220,7 @@ function initMapType(layer,initialType='street'){
  return ()=>{select.removeEventListener('change',change);window.removeEventListener('storage',stored);};
 }
 initMapType(background,initialMapType);
+initMapProvider(map,background);
 // Start location independently of selecting or downloading a bus line.
 routeNavigator.start();
 

@@ -93,3 +93,11 @@ Se incluyen un icono Apple opaco de 180 × 180 y un icono maskable de 512 × 512
 ## Mantener la pantalla encendida
 
 Durante la navegación se solicita Screen Wake Lock. Se recupera al volver a la aplicación y después de una liberación del sistema; los rechazos se reintentan con una espera de 30 segundos o mediante una interacción del usuario. No se solicita en segundo plano ni después de detener el GPS. En Opciones → Ajustes se indica si está activo, pendiente o no disponible, con Reintentar cuando el sistema lo rechaza. Las pruebas cubren las solicitudes simultáneas, la suspensión, la recuperación, los rechazos y las respuestas tardías. La comprobación física en iPhone sigue siendo necesaria.
+
+### Proveedor opcional Mapbox
+
+Ajustes permite elegir IGN o Mapbox. Mapbox GL JS 3.33.0 se carga desde su CDN oficial solo al seleccionar Mapbox; utiliza un token público de lectura, sujeto a los límites y tarifas de la cuenta. La instancia se reutiliza al alternar proveedores o estilos para evitar reinicializaciones innecesarias. El canvas vectorial se sincroniza con la cámara Leaflet (zoom menos uno por la diferencia entre teselas de 256 y 512 px, rumbo con signo inverso); Leaflet conserva recorridos, paradas, controles y GPS.
+
+El modo nocturno vectorial representa edificios negros, suelo gris oscuro, calles gris claro y etiquetas contrastadas. Vista aérea conserva su imagen original. El SDK y los recursos de Mapbox no se precargan ni se añaden a las cachés offline de la app. Los paquetes guardados siguen utilizando IGN, que se muestra al perder la conexión. Se conserva la preferencia Mapbox para recuperar el proveedor al volver a tener red. Un fallo de carga o de WebGL deja IGN visible.
+
+El token público se configura en la variable de repositorio de GitHub Actions `MAPBOX_PUBLIC_TOKEN`. El flujo `publish-pages.yml` genera el HTML y el ZIP en el despliegue; el token no forma parte de los archivos versionados. Un build local sin esa variable mantiene IGN disponible y muestra Mapbox como pendiente de configuración. GitHub Pages utiliza GitHub Actions como origen de publicación.

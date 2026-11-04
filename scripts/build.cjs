@@ -9,6 +9,9 @@ for(const name of ['startup.js','leaflet.js','leaflet-rotate.js','core.js','offl
  html=html.replace('<script src="'+name+'"></script>',()=>'<script>'+js.replace(/<\/script/gi,'<\\/script')+'</script>');
 }
 html=html.replace('<script>',()=>'<script type="application/json" id="embedded-data">'+JSON.stringify(data).replace(/</g,'\\u003c')+'</script><script>');
+const mapboxToken=process.env.MAPBOX_PUBLIC_TOKEN||'';
+if(mapboxToken&&!/^pk\.[A-Za-z0-9._-]+$/.test(mapboxToken))throw Error('MAPBOX_PUBLIC_TOKEN must be a public token');
+html=html.replaceAll('__BUS_COPILOT_MAPBOX_PUBLIC_TOKEN__',mapboxToken);
 fs.writeFileSync(path.join(out,'index.html'),html);
 fs.copyFileSync(path.join(root,'manifest.webmanifest'),path.join(out,'manifest.webmanifest'));
 fs.cpSync(path.join(root,'icons'),path.join(out,'icons'),{recursive:true});fs.writeFileSync(path.join(out,'.nojekyll'),'');
