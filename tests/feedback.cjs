@@ -8,6 +8,7 @@ async function checkLoad(mode){const el=elements();let calls=0,saves=0,choices=0
  const savedItems=snapshot.features.filter(f=>Number(f.attributes.Linea)===5);
  const ctx={automaticNetwork:{setData(){}},latestOfflineDataset:null,$:id=>el[id],SOURCE:'https://example.invalid',withTestRoutes:core.withTestRoutes,validFeatures:core.validFeatures,attachStops:async()=>{},label:f=>String(f.attributes.LabelLinea||f.attributes.Linea).padStart(2,'0'),current:mode==='active'?savedItems[0]:null,features:[],groups:[],selected:'',choose:()=>{choices++},renderList:()=>{renders++},AbortSignal,navigator:{onLine:mode!=='local'},savedLines:new Map(mode==='local'?[['05',{items:savedItems}]]:[]),BusOffline:{savedDataset:async()=>stored,saveDataset:async()=>{saves++}},fetch:async()=>{calls++;if(mode==='error'||mode==='cached')throw Error('Source unavailable');return{ok:true,json:async()=>structuredClone(snapshot)}}};
  ctx.map=null;ctx.updateStopMarkerSizes=()=>{};ctx.createRouteNavigator=()=>({routeChanged(){},isActive:()=>['active','locating'].includes(mode)});
+ vm.runInNewContext(src.slice(src.indexOf('function compareLineGroups('),src.indexOf('function setLineIcon(')),ctx);
  await vm.runInNewContext(loadSource+';load('+String(mode!=='local')+')',ctx);
  assert.equal(el.dataStatus.dataset.state,mode==='local'?'cached':['active','locating'].includes(mode)?'live':mode);assert.equal(el.refresh.disabled,false);
  if(mode==='cached')assert.match(el.status.textContent,/Copia local/);
