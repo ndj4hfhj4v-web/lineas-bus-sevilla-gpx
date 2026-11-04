@@ -101,3 +101,7 @@ Ajustes permite elegir IGN o Mapbox. Mapbox GL JS 3.33.0 se carga desde su CDN o
 Mapbox utiliza sus estilos oficiales: Streets durante el día y Dark v11 en el callejero nocturno. No se personalizan sus colores. Vista aérea y topográfico conservan sus estilos originales. El SDK y los recursos de Mapbox no se precargan ni se añaden a las cachés offline de la app. Los paquetes guardados siguen utilizando IGN, que se muestra al perder la conexión. Se conserva la preferencia Mapbox para recuperar el proveedor al volver a tener red. Un fallo de carga o de WebGL deja IGN visible.
 
 El token público se configura en la variable de repositorio de GitHub Actions `MAPBOX_PUBLIC_TOKEN`. El flujo `publish-pages.yml` genera el HTML y el ZIP en el despliegue; el token no forma parte de los archivos versionados. Un build local sin esa variable mantiene IGN disponible y muestra Mapbox como pendiente de configuración. GitHub Pages utiliza GitHub Actions como origen de publicación.
+
+### Flechas del recorrido
+
+Ajustes permite activar o desactivar las flechas, con preferencia guardada en el dispositivo. Indican el orden real de las coordenadas del sentido seleccionado. Se muestran como geometrías SVG no interactivas sobre ambos proveedores, incluso sin conexión, sin unir segmentos separados. Mantienen separación visual al cambiar el zoom y giran con el recorrido. Se evita superponerlas a las paradas y recrearlas con cada pequeño movimiento GPS.
