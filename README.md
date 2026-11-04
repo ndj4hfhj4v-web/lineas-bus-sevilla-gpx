@@ -25,6 +25,7 @@ Los controles manuales de guardar, filtrar copias y borrar mapas se han retirado
 ## Funciones
 
 - Búsqueda de líneas y selección del sentido de marcha.
+- Cabeceras cuadradas (inicio verde y final marrón) y paradas intermedias circulares, con tamaño adaptado al zoom de navegación.
 - Interfaz compacta, sin bloques de instrucciones ni descarga conjunta de toda la red.
 - Mapa a pantalla completa al abrir el recorrido con GPS, con giro según la dirección del desplazamiento.
 - Solo un botón de regreso al tocar el mapa, que se oculta tras cinco segundos, y un icono de ubicación para recuperar el seguimiento.
