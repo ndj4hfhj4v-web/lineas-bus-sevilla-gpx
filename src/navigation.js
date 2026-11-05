@@ -92,7 +92,7 @@ function gpsDiagnosticText(result){
  return lines.join('\n');
 }
 
-function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
+function createRouteNavigator(map,getRoute,onStateChange=()=>{},onPosition=()=>{}){
  const el=id=>document.getElementById(id);let active=false,watch=null,generation=0,marker=null,accuracyCircle=null,last=null,following=true,timer=null,routeKey=null;
  let approximatePending=false,approximateAttempt=0,approximateSerial=0,watchSerial=0,watchStarted=0;
  let expanded=false,returnFocus=null,resumeNavigation=false;
@@ -139,7 +139,7 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{}){
   const next={lat:c.latitude,lon:c.longitude,accuracy:c.accuracy,time:data.timestamp,speed:c.speed,heading:c.heading};
   if(last&&data.timestamp-last.time<10000&&Number.isFinite(c.speed)&&c.speed<.6&&gpsDistance([last.lon,last.lat],[next.lon,next.lat])<Math.max(4,Math.min(10,c.accuracy*.6))){next.lat=last.lat;next.lon=last.lon;}
   if(last&&data.timestamp-last.time<10000&&gpsDistance([last.lon,last.lat],[next.lon,next.lat])>Math.max(80,(data.timestamp-last.time)/1000*45+last.accuracy+next.accuracy))return;
-  last=next;const ll=[last.lat,last.lon];
+  last=next;onPosition(next);const ll=[last.lat,last.lon];
   const motion=gpsMotionCourse(courseAnchor,last);courseAnchor=motion.anchor;if(motion.heading!==null)travelHeading=motion.heading;
   if(!marker){marker=L.marker(ll,{icon:L.divIcon({className:'gps-arrow',iconSize:[36,36],iconAnchor:[18,18],html:'<svg class="gps-arrow-shape" viewBox="0 0 36 36" aria-hidden="true"><path d="M18 3 L32 32 L18 26 L4 32 Z" fill="#e2231a" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>'}),keyboard:false,interactive:false,zIndexOffset:1000}).bindTooltip('Tu posición GPS').addTo(map);accuracyCircle=L.circle(ll,{radius:last.accuracy,color:'#e2231a',weight:1,fillColor:'#e2231a',fillOpacity:.08,interactive:false}).addTo(map);}else{if(!following){marker.setLatLng(ll);accuracyCircle.setLatLng(ll);}marker.setOpacity(1);accuracyCircle.setRadius(last.accuracy);}
   followPosition();orientArrow();
