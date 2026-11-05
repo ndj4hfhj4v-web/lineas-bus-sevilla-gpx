@@ -174,3 +174,14 @@ html[data-zoom-metres="hidden"] .leaflet-control-scale{display:none!important}
 .google-maps-background{position:absolute!important;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
 html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom:20px}
 .google-maps-background a{pointer-events:auto}
+
+.map-app #openStatistics {
+ background: repeating-conic-gradient(#202020 0% 25%, #fff 0% 50%) 0 0 / 24px 24px;
+ border-color: #202020;
+ color: #fff;
+}
+.map-app #openStatistics > span {
+ padding: 2px 8px;
+ border-radius: 5px;
+ background: #202020;
+}
