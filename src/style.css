@@ -196,28 +196,34 @@ html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom
  bottom:calc(env(safe-area-inset-bottom,0px) + 28px);
  left:calc(env(safe-area-inset-left,0px) + 124px);
  right:calc(env(safe-area-inset-right,0px) + 68px);
- width:max-content;
- max-width:min(220px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 192px));
+ width:auto;
+ max-width:min(260px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 192px));
  margin-inline:auto;
- padding:5px 8px;
+ padding:4px 6px;
  border:1px solid #adc0b3;
- border-radius:8px;
+ border-radius:4px;
  background:#edf3ee;
  color:#244b3b;
  box-shadow:0 2px 8px #0002;
  pointer-events:none;
 }
 #gpsInformationView:not([hidden]) + .map-readouts {
- bottom:calc(env(safe-area-inset-bottom,0px) + 115px);
+ bottom:calc(env(safe-area-inset-bottom,0px) + 86px);
 }
 .gps-information {
  display:grid;
  grid-template-columns:repeat(2,minmax(0,1fr));
- gap:3px 8px;
+ gap:2px 5px;
  margin:0;
- font:11px/1.15 system-ui,sans-serif;
+ font:10px/1.15 system-ui,sans-serif;
 }
-.gps-information dt {font-size:10px}
+.gps-information > div {
+ display:flex;
+ align-items:baseline;
+ gap:3px;
+ white-space:nowrap;
+}
+.gps-information dt {font-size:inherit}
 .gps-information dd {
  margin:0;
  font-weight:600;
