@@ -380,7 +380,20 @@ function initRouteRecording(startGps) {
    exportButton.type = 'button';
    exportButton.textContent = 'Descargar GPX';
    exportButton.onclick = () => exportRoute(route);
-   row.append(title, rename, exportButton);
+   const deleteButton = document.createElement('button');
+   deleteButton.type = 'button';
+   deleteButton.textContent = 'Borrar';
+   deleteButton.setAttribute('aria-label', 'Borrar ' + route.name);
+   deleteButton.onclick = () => {
+    if (!window.confirm('¿Borrar «' + route.name + '» de tus rutas guardadas?')) return;
+    const index = routes.indexOf(route);
+    if (index === -1) return;
+    routes.splice(index, 1);
+    if (!save()) routes.splice(index, 0, route);
+    renderLibrary();
+    render();
+   };
+   row.append(title, rename, exportButton, deleteButton);
    list.append(row);
   }
  }
