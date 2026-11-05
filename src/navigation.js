@@ -75,11 +75,11 @@ function gpsLookAheadCenter(map,position,bearing,zoom){
  return [center.lat,center.lng];
 }
 // One camera clock moves and turns the map without competing CSS pan animations.
-function createGpsCamera(map,onFrame=()=>{}){
+function createGpsCamera(map,onFrame=()=>{},preserveInitialZoom=()=>false){
  let frame=null,point=null,bearing=null;
  const raf=typeof requestAnimationFrame==='function'?requestAnimationFrame:null;
  function cancel(){if(frame!==null&&typeof cancelAnimationFrame==='function')cancelAnimationFrame(frame);frame=null;}
- function draw(p,b,snap=false){if(b!==null&&map.setBearing)map.setBearing(b);const zoom=!point?Math.max(16,map.getZoom()):map.getZoom(),center=gpsLookAheadCenter(map,p,b,zoom);if(snap||!map.panTo)map.setView(center,zoom,{animate:false,reset:snap});else map.panTo(center,{animate:false});point=p;bearing=b;onFrame(p);}
+ function draw(p,b,snap=false){if(b!==null&&map.setBearing)map.setBearing(b);const zoom=!point&&!preserveInitialZoom()?Math.max(16,map.getZoom()):map.getZoom(),center=gpsLookAheadCenter(map,p,b,zoom);if(snap||!map.panTo)map.setView(center,zoom,{animate:false,reset:snap});else map.panTo(center,{animate:false});point=p;bearing=b;onFrame(p);}
  function follow(fix,heading,reset=false){
   cancel();if(map.stopHeadingUp)map.stopHeadingUp();
   const target={lat:fix.lat,lon:fix.lon},targetBearing=heading===null?(bearing??(map.getBearing?map.getBearing():null)):(360-heading)%360;
@@ -146,13 +146,13 @@ function gpsDiagnosticText(result){
  return lines.join('\n');
 }
 
-function createRouteNavigator(map,getRoute,onStateChange=()=>{},onPosition=()=>{}){
+function createRouteNavigator(map,getRoute,onStateChange=()=>{},onPosition=()=>{},preserveInitialZoom=()=>false){
  const el=id=>document.getElementById(id);let active=false,watch=null,generation=0,marker=null,accuracyCircle=null,last=null,following=true,timer=null,routeKey=null;
  let approximatePending=false,approximateAttempt=0,approximateSerial=0,watchSerial=0,watchStarted=0;
  let expanded=false,returnFocus=null,resumeNavigation=false;
  let travelHeading=null,courseAnchor=null;
  let viewPosition=null,zooming=false;
- const camera=createGpsCamera(map,p=>{if(marker)marker.setLatLng([p.lat,p.lon]);if(accuracyCircle)accuracyCircle.setLatLng([p.lat,p.lon]);orientArrow();});
+ const camera=createGpsCamera(map,p=>{if(marker)marker.setLatLng([p.lat,p.lon]);if(accuracyCircle)accuracyCircle.setLatLng([p.lat,p.lon]);orientArrow();},preserveInitialZoom);
  function followPosition(){if(!last||!following||zooming)return;camera.follow(last,travelHeading,viewPosition===null);viewPosition=[last.lon,last.lat];}
  function orientArrow(){const shape=marker?.getElement?.()?.querySelector('.gps-arrow-shape');if(shape)shape.style.transform='rotate('+((following&&map.getBearing?-map.getBearing():(travelHeading??0))+(map.getBearing?map.getBearing():0))+'deg)';}
  let chromeTimer=null;
