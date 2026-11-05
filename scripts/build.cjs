@@ -9,6 +9,8 @@ for(const name of ['leaflet.js','leaflet-rotate.js','core.js','offline.js','navi
  html=html.replace('<script src="'+name+'"></script>',()=>'<script>'+js.replace(/<\/script/gi,'<\\/script')+'</script>');
 }
 html=html.replace('<script>',()=>'<script type="application/json" id="embedded-data">'+JSON.stringify(data).replace(/</g,'\\u003c')+'</script><script>');
+const gpxHelmet = fs.readFileSync(path.join(root,'icons/gpx-helmet.png')).toString('base64');
+html=html.replace('src="icons/gpx-helmet.png"','src="data:image/png;base64,'+gpxHelmet+'"');
 fs.writeFileSync(path.join(out,'index.html'),html);
 fs.copyFileSync(path.join(root,'gps-prueba.html'),path.join(out,'gps-prueba.html')); 
 fs.copyFileSync(path.join(root,'manifest.webmanifest'),path.join(out,'manifest.webmanifest'));

@@ -269,8 +269,71 @@ function selectableRoutes(group){
 }
 async function useSavedMapForLine(id){if(navigator.onLine!==false||$('mapType').disabled)return;try{const packs=await BusOffline.savedMapPacks(id);if(selected!==id||!packs.length||packs.some(p=>p.type===readMapType()))return;$('mapType').value=packs[0].type;$('mapType').dispatchEvent(new Event('change'));}catch{}}
 function choose(id,navigate=false){if(routeNavigator.isActive())routeNavigator.exit();selected=id;const g=groups.find(g=>g.id===id);$('name').textContent=g.name;setLineIcon($('badge'),g);setBadgeColor(g.items[0].attributes.Color);$('variant').replaceChildren();selectableRoutes(g).forEach((f,i)=>{const o=document.createElement('option');o.value=i;o.textContent=f.attributes.NombreRuta||f.attributes.DestinoRuta;$('variant').append(o)});$('variant').disabled=false;$('badge').hidden=false;$('senseBar').hidden=false;renderList();show();closeMenus(true);if(navigate)routeNavigator.start();}
-function show(){clearGpxDownloads();const g=groups.find(g=>g.id===selected);current=selectableRoutes(g)[Number($('variant').value)];if(map){if(routeLayer)map.removeLayer(routeLayer);stopMarkers=[];stopMarkerRadius=null;routeLayer=L.featureGroup().addTo(map);for(const path of current.geometry.paths){const pts=path.map(c=>[c[1],c[0]]);L.polyline(pts,{color:'#315e46',weight:5,opacity:.9}).addTo(routeLayer);}const stopStyle={radius:5,color:'#244b3b',weight:2,fillColor:'#e2f3a2',fillOpacity:1};const stops=current.stops||[];for(const [i,s] of stops.entries()){const terminal=i===0||i===stops.length-1,label=document.createElement('span');label.textContent=(terminal?'Cabecera · ':'')+(i+1)+'. '+s.attributes.Nombre+' (parada '+s.attributes.Nodo+')';stopMarkers.push(createRouteStop([s.geometry.y,s.geometry.x],stopStyle,terminal).bindTooltip(label).addTo(routeLayer));}if(!stops.length){const paths=current.geometry.paths.filter(path=>path.length);if(paths.length){stopMarkers.push(createRouteStop([paths[0][0][1],paths[0][0][0]],stopStyle,true).bindTooltip('Cabecera · Inicio del recorrido').addTo(routeLayer));const last=paths.at(-1).at(-1);stopMarkers.push(createRouteStop([last[1],last[0]],stopStyle,true).bindTooltip('Cabecera · Final del recorrido').addTo(routeLayer));}}
-map.fitBounds(routeLayer.getBounds(),{paddingTopLeft:[24,140],paddingBottomRight:[24,38],animate:false});const favourite=getFavouriteZoom?.();if(favourite!=null)setMetricZoomDistance(map,favourite);routeArrowsController?.refresh();}$('stopList').replaceChildren();for(const s of current.stops||[]){const li=document.createElement('li');li.textContent=s.attributes.Nombre+' · parada '+s.attributes.Nodo;$('stopList').append(li);}$('stopCount').textContent=(current.stops||[]).length+' paradas en este recorrido';$('stats').textContent=distance(current).toLocaleString('es',{maximumFractionDigits:1})+' km · '+current.geometry.paths.reduce((n,p)=>n+p.length,0)+' puntos · '+(current.stops||[]).length+' paradas';$('download').disabled=false;routeNavigator.routeChanged();updateStopMarkerSizes();useSavedMapForLine(selected);}
+function show(importedRoute=null){clearGpxDownloads();const g=groups.find(g=>g.id===selected);current=importedRoute||selectableRoutes(g)[Number($('variant').value)];if(map){if(routeLayer)map.removeLayer(routeLayer);stopMarkers=[];stopMarkerRadius=null;routeLayer=L.featureGroup().addTo(map);for(const path of current.geometry.paths){const pts=path.map(c=>[c[1],c[0]]);L.polyline(pts,{color:'#315e46',weight:5,opacity:.9}).addTo(routeLayer);}const stopStyle={radius:5,color:'#244b3b',weight:2,fillColor:'#e2f3a2',fillOpacity:1};const stops=current.stops||[];for(const [i,s] of stops.entries()){const terminal=!importedRoute&&(i===0||i===stops.length-1),label=document.createElement('span');label.textContent=(terminal?'Cabecera · ':'')+(i+1)+'. '+s.attributes.Nombre+' (parada '+s.attributes.Nodo+')';stopMarkers.push(createRouteStop([s.geometry.y,s.geometry.x],stopStyle,terminal).bindTooltip(label).addTo(routeLayer));}if(!stops.length){const paths=current.geometry.paths.filter(path=>path.length);if(paths.length){stopMarkers.push(createRouteStop([paths[0][0][1],paths[0][0][0]],stopStyle,true).bindTooltip('Cabecera · Inicio del recorrido').addTo(routeLayer));const last=paths.at(-1).at(-1);stopMarkers.push(createRouteStop([last[1],last[0]],stopStyle,true).bindTooltip('Cabecera · Final del recorrido').addTo(routeLayer));}}
+map.fitBounds(routeLayer.getBounds(),{paddingTopLeft:[24,140],paddingBottomRight:[24,38],animate:false});const favourite=getFavouriteZoom?.();if(!importedRoute&&favourite!=null)setMetricZoomDistance(map,favourite);routeArrowsController?.refresh();}$('stopList').replaceChildren();for(const s of current.stops||[]){const li=document.createElement('li');li.textContent=s.attributes.Nombre+' · parada '+s.attributes.Nodo;$('stopList').append(li);}$('stopCount').textContent=(current.stops||[]).length+' paradas en este recorrido';$('stats').textContent=distance(current).toLocaleString('es',{maximumFractionDigits:1})+' km · '+current.geometry.paths.reduce((n,p)=>n+p.length,0)+' puntos · '+(current.stops||[]).length+' paradas';$('download').disabled=Boolean(importedRoute);routeNavigator.routeChanged();updateStopMarkerSizes();if(!importedRoute)useSavedMapForLine(selected);}
+
+function parseGpxRoute(source, filename) {
+ if (/<!DOCTYPE/i.test(source)) throw Error('El archivo GPX contiene una declaración no admitida.');
+ const xml = new DOMParser().parseFromString(source, 'application/xml');
+ const root = xml.documentElement;
+ if (root?.localName !== 'gpx' || xml.getElementsByTagNameNS('*', 'parsererror').length) {
+  throw Error('El archivo no es un GPX válido.');
+ }
+ const children = (element, name) => Array.from(element.children).filter(child => child.localName === name);
+ const firstName = element => element && children(element, 'name')[0]?.textContent.trim();
+ function coordinate(point) {
+  const lat = point.getAttribute('lat')?.trim(), lon = point.getAttribute('lon')?.trim();
+  if (!lat || !lon || !Number.isFinite(+lat) || !Number.isFinite(+lon) || Math.abs(+lat) > 90 || Math.abs(+lon) > 180) {
+   throw Error('El GPX contiene coordenadas no válidas.');
+  }
+  return [+lon, +lat];
+ }
+ const tracks = children(root, 'trk'), routes = children(root, 'rte');
+ const paths = tracks.flatMap(track => children(track, 'trkseg').map(segment => children(segment, 'trkpt').map(coordinate)));
+ paths.push(...routes.map(route => children(route, 'rtept').map(coordinate)));
+ const usablePaths = paths.filter(path => path.length >= 2);
+ if (!usablePaths.length) throw Error('El GPX debe contener un recorrido con al menos dos puntos consecutivos.');
+ const name = (firstName(children(root, 'metadata')[0]) || firstName(tracks[0]) ||
+  firstName(routes[0]) || filename.replace(/\.gpx$/i, '') || 'Recorrido GPX').slice(0, 100);
+ const stops = children(root, 'wpt').map((point, index) => {
+  const [x, y] = coordinate(point);
+  return {geometry:{x,y},attributes:{Nombre:(firstName(point) || 'Punto ' + (index + 1)).slice(0, 100),Nodo:index + 1}};
+ });
+ return {attributes:{NombreRuta:name},geometry:{paths:usablePaths},stops};
+}
+
+function initGpxImport() {
+ const input = $('gpxImportFile'), button = $('importGpx'), status = $('gpxImportStatus');
+ button.onclick = () => input.click();
+ input.onchange = async () => {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  status.hidden = false;
+  status.textContent = 'Leyendo el archivo GPX…';
+  button.disabled = true;
+  try {
+   if (!map) throw Error('El mapa no está disponible.');
+   if (file.size > 10 * 1024 * 1024) throw Error('El GPX supera el límite de 10 MB.');
+   const route = parseGpxRoute(await file.text(), file.name);
+   if (routeNavigator.isActive()) routeNavigator.exit();
+   selected = '';
+   $('name').textContent = route.attributes.NombreRuta;
+   $('badge').hidden = true;
+   $('senseBar').hidden = true;
+   $('variant').disabled = true;
+   renderList();
+   show(route);
+   closeMenus();
+   status.textContent = 'GPX abierto en el mapa.';
+  } catch (error) {
+   status.textContent = error.message || 'No se pudo leer el archivo GPX.';
+  } finally {
+   button.disabled = false;
+  }
+ };
+}
+
 let gpxDownloadUrls=[];
 function clearGpxDownloads(){for(const url of gpxDownloadUrls)setTimeout(()=>URL.revokeObjectURL(url),30000);gpxDownloadUrls=[];$('gpxFiles').replaceChildren();$('gpxFiles').hidden=true;$('downloadStatus').hidden=true;$('downloadStatus').textContent='';}
 function lineGpxRoutes(group,route){const routes=selectableRoutes(group),variant=routes.filter(f=>f.attributes.Sublinea===route?.attributes.Sublinea);return variant.length?variant:routes;}
@@ -472,7 +535,7 @@ function initGpsInformationVisibility() {
 }
 
 const nextStop = initNextStop();
-const routeNavigator=createRouteNavigator(map,()=>current,active=>{updateStopMarkerSizes();if(!active){nextStop.reset();latestGpsFix=null;if(!$("gpsInformationView").hidden)renderGpsInformation();}},fix=>{latestGpsFix=fix;if(!$("gpsInformationView").hidden)renderGpsInformation();nextStop.update(current,fix);recorder.addPosition(fix);if(!document.hidden)lineStatistics.addPosition(current,fix);},()=>current!=null&&getFavouriteZoom?.()!=null);
+const routeNavigator=createRouteNavigator(map,()=>current,active=>{updateStopMarkerSizes();if(!active){nextStop.reset();latestGpsFix=null;if(!$("gpsInformationView").hidden)renderGpsInformation();}},fix=>{latestGpsFix=fix;if(!$("gpsInformationView").hidden)renderGpsInformation();nextStop.update(selected ? current : null,fix);recorder.addPosition(fix);if(!document.hidden)lineStatistics.addPosition(selected ? current : null,fix);},()=>current!=null&&getFavouriteZoom?.()!=null);
 $('search').oninput=renderList;$('variant').onchange=()=>{if(routeNavigator.isActive())routeNavigator.exit();show();routeNavigator.start();};$('refresh').onclick=()=>load(true);$('download').onclick=downloadLineGpx;startOfflineApp();
 
 function offlineNetworkFingerprint(data){let hash=2166136261;const value=JSON.stringify(data.features);for(let i=0;i<value.length;i++){hash^=value.charCodeAt(i);hash=Math.imul(hash,16777619);}return (hash>>>0).toString(16)+':'+value.length;}
@@ -508,10 +571,10 @@ async function startOfflineApp(){
 function showOptionsView(view='main',focus=true){const previous=$('optionsPanel').dataset.view;$('gpsInformationView').hidden=view!=='gpsInformation';$('openGpsInformation').setAttribute('aria-expanded',String(view==='gpsInformation'));if(view==='gpsInformation')renderGpsInformation();$('statisticsView').hidden=view!=='statistics';$('openStatistics').setAttribute('aria-expanded',String(view==='statistics'));if(view==='statistics')renderLineStatistics();$('recordingView').hidden=view!=='recording';$('openRecording').setAttribute('aria-expanded',String(view==='recording'));$('optionsMain').hidden=view!=='main';$('settingsView').hidden=view!=='settings';$('displayView').hidden=view!=='display';$('openDisplay').setAttribute('aria-expanded',String(view==='display'));$('offlineView').hidden=view!=='offline';$('gpxView').hidden=view!=='gpx';$('infoView').hidden=view!=='info';$('installView').hidden=view!=='install';$('optionsBack').hidden=view==='main';$('optionsBack').setAttribute('aria-label',view==='install'?'Volver a Información':view==='display'?'Volver a Ajustes':'Volver a opciones');const title={main:'Opciones',statistics:'Estadísticas',gpsInformation:'Datos GPS',recording:'Rutas guardadas',settings:'Ajustes',display:'Pantalla',offline:'Paradas del recorrido',gpx:'Archivos GPX',info:'Información',install:'Instalar aplicación'}[view];$('optionsTitle').textContent=title;$('optionsPanel').setAttribute('aria-label',title);$('optionsPanel').dataset.view=view;$('openSettings').setAttribute('aria-expanded',String(view==='settings'));$('openOffline').setAttribute('aria-expanded',String(view==='offline'));$('openGpx').setAttribute('aria-expanded',String(view==='gpx'));$('openInfo').setAttribute('aria-expanded',String(view==='info'));$('openInstall').setAttribute('aria-expanded',String(view==='install'));if(focus)$(view!=='main'?'optionsBack':previous==='offline'?'openOffline':previous==='gpx'?'openGpx':previous==='info'?'openInfo':previous==='recording'?'openRecording':previous==='statistics'?'openStatistics':previous==='gpsInformation'?'openGpsInformation':previous==='install'?'openInstall':'openSettings').focus({preventScroll:true});}
 function closeMenus(restoreFocus=false){showOptionsView('main',false);const activePanel=!$('linePanel').hidden?'lines':!$('optionsPanel').hidden?'options':null;$('linePanel').hidden=true;$('optionsPanel').hidden=true;$('selectLine').setAttribute('aria-expanded','false');$('optionsToggle').setAttribute('aria-expanded','false');$('gpsDetail').dataset.menuOpen='false';routeNavigator.revealControls();if(restoreFocus&&activePanel)$(activePanel==='lines'?'selectLine':'optionsToggle').focus({preventScroll:true});}
 function openMenu(which){const panel=$(which==='lines'?'linePanel':'optionsPanel'),wasOpen=!panel.hidden;closeMenus();if(wasOpen)return;panel.hidden=false;$(which==='lines'?'selectLine':'optionsToggle').setAttribute('aria-expanded','true');$('gpsDetail').dataset.menuOpen='true';routeNavigator.revealControls();$(which==='lines'?'closeLines':'closeOptions').focus({preventScroll:true});}
-$('selectLine').onclick=()=>openMenu('lines');$('optionsToggle').onclick=()=>openMenu('options');$('closeLines').onclick=()=>closeMenus(true);$('closeOptions').onclick=()=>closeMenus(true);$('openSettings').onclick=()=>showOptionsView('settings');$('openDisplay').onclick=()=>showOptionsView('display');$('optionsBack').onclick=()=>showOptionsView($('optionsPanel').dataset.view==='install'?'info':$('optionsPanel').dataset.view==='display'?'settings':'main');$('openOffline').onclick=()=>showOptionsView('offline');$('openGpx').onclick=()=>showOptionsView('gpx');$('openRecording').onclick=()=>showOptionsView('recording');$('openStatistics').onclick=()=>showOptionsView('statistics');$('openInfo').onclick=()=>showOptionsView('info');$('openGpsInformation').onclick=()=>showOptionsView('gpsInformation');initGpsInformationVisibility();$('openInstall').onclick=()=>showOptionsView('install');
+$('selectLine').onclick=()=>openMenu('lines');$('optionsToggle').onclick=()=>openMenu('options');$('closeLines').onclick=()=>closeMenus(true);$('closeOptions').onclick=()=>closeMenus(true);$('openSettings').onclick=()=>showOptionsView('settings');$('openDisplay').onclick=()=>showOptionsView('display');$('optionsBack').onclick=()=>showOptionsView($('optionsPanel').dataset.view==='install'?'info':$('optionsPanel').dataset.view==='display'?'settings':'main');$('openOffline').onclick=()=>showOptionsView('offline');$('openGpx').onclick=()=>showOptionsView('gpx');$('openRecording').onclick=()=>showOptionsView('recording');$('openStatistics').onclick=()=>showOptionsView('statistics');$('openInfo').onclick=()=>showOptionsView('info');$('openGpsInformation').onclick=()=>showOptionsView('gpsInformation');initGpsInformationVisibility();initGpxImport();$('openInstall').onclick=()=>showOptionsView('install');
 document.addEventListener('pointerdown',event=>{if(event.target.closest('#map'))closeMenus();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&(!$('linePanel').hidden||!$('optionsPanel').hidden)){event.preventDefault();if($('optionsPanel').dataset.view!=='main')showOptionsView('main');else closeMenus(true);}});
-$('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&!button.closest('#savedRecordingList')&&!['openDisplay','closeOptions','openSettings','openOffline','openGpx','openInfo','openInstall','installAction','retryWake','retryGps','gpsDiagnosticButton','savePersonalMapKeys','openRecording','openStatistics','openGpsInformation','retryGpsInformation','recordingToggle','recordingNew','recordingDownload','optionsBack','download'].includes(button.id))closeMenus(true);});
+$('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&!button.closest('#savedRecordingList')&&!['openDisplay','closeOptions','openSettings','openOffline','openGpx','openInfo','openInstall','installAction','retryWake','retryGps','gpsDiagnosticButton','savePersonalMapKeys','openRecording','openStatistics','openGpsInformation','retryGpsInformation','recordingToggle','recordingNew','recordingDownload','optionsBack','importGpx','download'].includes(button.id))closeMenus(true);});
 
 function initMapViewport(map){
  const viewport=window.visualViewport,style=document.documentElement.style;let frame=null,lastWidth=0,lastHeight=0;
