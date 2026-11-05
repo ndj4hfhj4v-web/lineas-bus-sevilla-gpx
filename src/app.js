@@ -302,6 +302,19 @@ function parseGpxRoute(source, filename) {
  return {attributes:{NombreRuta:name},geometry:{paths:usablePaths},stops};
 }
 
+function openCustomRoute(route) {
+ if (!map) throw Error('El mapa no está disponible.');
+ if (routeNavigator.isActive()) routeNavigator.exit();
+ selected = '';
+ $('name').textContent = route.attributes.NombreRuta;
+ $('badge').hidden = true;
+ $('senseBar').hidden = true;
+ $('variant').disabled = true;
+ renderList();
+ show(route);
+ closeMenus();
+}
+
 function initGpxImport() {
  const input = $('gpxImportFile'), button = $('importGpx'), status = $('gpxImportStatus');
  button.onclick = () => input.click();
@@ -316,15 +329,7 @@ function initGpxImport() {
    if (!map) throw Error('El mapa no está disponible.');
    if (file.size > 10 * 1024 * 1024) throw Error('El GPX supera el límite de 10 MB.');
    const route = parseGpxRoute(await file.text(), file.name);
-   if (routeNavigator.isActive()) routeNavigator.exit();
-   selected = '';
-   $('name').textContent = route.attributes.NombreRuta;
-   $('badge').hidden = true;
-   $('senseBar').hidden = true;
-   $('variant').disabled = true;
-   renderList();
-   show(route);
-   closeMenus();
+   openCustomRoute(route);
    status.textContent = 'GPX abierto en el mapa.';
   } catch (error) {
    status.textContent = error.message || 'No se pudo leer el archivo GPX.';
@@ -741,6 +746,23 @@ function initRouteRecording(startGps) {
    row.className = 'saved-recording-row';
    const title = document.createElement('strong');
    title.textContent = route.name;
+   const open = document.createElement('button');
+   open.type = 'button';
+   open.textContent = 'Abrir en el mapa';
+   open.setAttribute('aria-label', 'Abrir ' + route.name + ' en el mapa');
+   open.disabled = !map || !route.points.length;
+   open.onclick = () => {
+    const paths = [];
+    for (const point of route.points) {
+     if (!paths.length || point.split) paths.push([]);
+     paths.at(-1).push([point.lon, point.lat]);
+    }
+    const stops = route.waypoints.map((point, index) => ({
+     geometry: {x: point.lon, y: point.lat},
+     attributes: {Nombre: 'Punto ' + (index + 1), Nodo: index + 1}
+    }));
+    openCustomRoute({attributes: {NombreRuta: route.name}, geometry: {paths}, stops});
+   };
    const rename = document.createElement('button');
    rename.type = 'button';
    rename.textContent = 'Editar nombre';
@@ -770,7 +792,7 @@ function initRouteRecording(startGps) {
     renderLibrary();
     render();
    };
-   row.append(title, rename, exportButton, deleteButton);
+   row.append(title, open, rename, exportButton, deleteButton);
    list.append(row);
   }
  }
