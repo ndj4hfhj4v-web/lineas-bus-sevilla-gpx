@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const app=fs.readFileSync('src/app.js','utf8');const code=app.slice(app.indexOf('const MAPBOX_PUBLIC_TOKEN='),app.indexOf('const initialMapType='));
+const app=fs.readFileSync('src/app.js','utf8');const code=app.slice(app.indexOf('const PERSONAL_MAP_KEYS ='),app.indexOf('const initialMapType='));
 module.exports=(async()=>{
  const ctx={console};vm.createContext(ctx);vm.runInContext(code,ctx);
  assert.equal(ctx.mapboxStyle('street',true),'mapbox://styles/mapbox/dark-v11');assert.equal(ctx.mapboxStyle('aerial',true),'mapbox://styles/mapbox/satellite-streets-v12');

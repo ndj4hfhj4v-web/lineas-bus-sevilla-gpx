@@ -9,12 +9,6 @@ for(const name of ['leaflet.js','leaflet-rotate.js','core.js','offline.js','navi
  html=html.replace('<script src="'+name+'"></script>',()=>'<script>'+js.replace(/<\/script/gi,'<\\/script')+'</script>');
 }
 html=html.replace('<script>',()=>'<script type="application/json" id="embedded-data">'+JSON.stringify(data).replace(/</g,'\\u003c')+'</script><script>');
-const mapboxToken=process.env.MAPBOX_PUBLIC_TOKEN||'';
-if(mapboxToken&&!/^pk\.[A-Za-z0-9._-]+$/.test(mapboxToken))throw Error('MAPBOX_PUBLIC_TOKEN must be a public token');
-html=html.replaceAll('__BUS_COPILOT_MAPBOX_PUBLIC_TOKEN__',mapboxToken);
-const googleMapsKey=process.env.GOOGLE_MAPS_BROWSER_KEY||'';
-if(googleMapsKey&&!/^[A-Za-z0-9_-]+$/.test(googleMapsKey))throw Error('Invalid Google Maps browser key');
-html=html.replaceAll('__COPILOTER_GOOGLE_MAPS_BROWSER_KEY__',googleMapsKey);
 fs.writeFileSync(path.join(out,'index.html'),html);
 fs.copyFileSync(path.join(root,'gps-prueba.html'),path.join(out,'gps-prueba.html')); 
 fs.copyFileSync(path.join(root,'manifest.webmanifest'),path.join(out,'manifest.webmanifest'));

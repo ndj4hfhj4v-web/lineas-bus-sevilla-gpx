@@ -5,7 +5,37 @@ function readMapType(){try{return validMapType(localStorage.getItem('bus-sevilla
 function mapTileUrl(type){const source=MAP_BACKGROUNDS[validMapType(type)];return 'https://www.ign.es/wmts/'+source.service+'?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER='+source.layer+'&STYLE=default&FORMAT=image/jpeg&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}';}
 
 // Optional Mapbox renderer. IGN remains the only source used by offline map packs.
-const MAPBOX_PUBLIC_TOKEN="__BUS_COPILOT_MAPBOX_PUBLIC_TOKEN__";
+const PERSONAL_MAP_KEYS = 'copiloter-personal-map-keys';
+
+function readPersonalMapKeys(storage) {
+ try { return JSON.parse(storage().getItem(PERSONAL_MAP_KEYS)) || {}; }
+ catch { return {}; }
+}
+
+function initPersonalMapKeys() {
+ const form = $('personalMapKeys');
+ const mapbox = $('personalMapboxToken');
+ const google = $('personalGoogleKey');
+ const status = $('personalMapKeysStatus');
+ const saved = readPersonalMapKeys(() => localStorage);
+ mapbox.value = saved.mapbox || '';
+ google.value = saved.google || '';
+ form.onsubmit = event => {
+  event.preventDefault();
+  const keys = {mapbox:mapbox.value.trim(),google:google.value.trim()};
+  if (keys.mapbox && !/^pk\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(keys.mapbox)) {
+   status.textContent = 'Introduce un token público de Mapbox que empiece por pk.';
+   return;
+  }
+  if (keys.google && !/^[A-Za-z0-9_-]+$/.test(keys.google)) {
+   status.textContent = 'Revisa la clave de navegador de Google Maps.';
+   return;
+  }
+  try { localStorage.setItem(PERSONAL_MAP_KEYS, JSON.stringify(keys)); }
+  catch { status.textContent = 'El navegador no permite guardar las claves en este dispositivo.'; return; }
+  location.reload();
+ };
+}
 function mapboxCamera(map){const center=map.getCenter();return {center:[center.lng,center.lat],zoom:map.getZoom()-1,bearing:-(map.getBearing?map.getBearing():0),pitch:0};}
 function mapboxStyle(type,dark=false){return 'mapbox://styles/mapbox/'+(type==='street'&&dark?'dark-v11':({street:'streets-v12',aerial:'satellite-streets-v12',topographic:'outdoors-v12'}[type]||'streets-v12'));}
 let mapboxSdkPromise;
@@ -14,7 +44,7 @@ function loadMapboxSdk(doc=document,win=window){
  mapboxSdkPromise=new Promise((resolve,reject)=>{const css=doc.createElement('link');css.rel='stylesheet';css.href='https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.css';doc.head.append(css);const script=doc.createElement('script');script.src='https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.js';script.async=true;const timer=win.setTimeout(()=>{script.remove();reject(Error('Mapbox no respondió.'));},20000);script.onload=()=>{win.clearTimeout(timer);win.mapboxgl?resolve(win.mapboxgl):reject(Error('Mapbox no está disponible.'));};script.onerror=()=>{win.clearTimeout(timer);script.remove();reject(Error('No se ha podido cargar Mapbox.'));};doc.head.append(script);}).catch(error=>{mapboxSdkPromise=null;throw error;});return mapboxSdkPromise;
 }
 
-const GOOGLE_MAPS_BROWSER_KEY="__COPILOTER_GOOGLE_MAPS_BROWSER_KEY__";
+
 let googleMapsSdkPromise;
 function loadGoogleMapsSdk(key, doc, win, onAuthFailure) {
  win.gm_authFailure = onAuthFailure;
@@ -45,12 +75,18 @@ function loadGoogleMapsSdk(key, doc, win, onAuthFailure) {
 }
 
 function initMapProvider(map,ign,env={window,document,navigator,storage:()=>localStorage,loadSdk:()=>loadMapboxSdk()}){
- const accessToken=env.accessToken??MAPBOX_PUBLIC_TOKEN,win=env.window,doc=env.document,root=doc.documentElement,select=doc.getElementById('mapProvider'),status=doc.getElementById('mapProviderStatus'),key='bus-copilot-map-provider';let preferred='mapbox',renderer=null,host=null,pending=null,ready=false,disposed=false,generation=0,frame=null,styleKey='',credited=false,loadTimer=null,failed=false,aerialFailed=false;
+ const keys = readPersonalMapKeys(env.storage);
+ const accessToken=env.accessToken??keys.mapbox??'',win=env.window,doc=env.document,root=doc.documentElement,select=doc.getElementById('mapProvider'),status=doc.getElementById('mapProviderStatus'),key='bus-copilot-map-provider';let preferred='ign',renderer=null,host=null,pending=null,ready=false,disposed=false,generation=0,frame=null,styleKey='',credited=false,loadTimer=null,failed=false,aerialFailed=false;
  const aerialFallback='No se han podido cargar las imágenes de Mapbox. Se muestra la vista aérea del IGN.';
  const attribution='<a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <a href="https://apps.mapbox.com/feedback/" target="_blank" rel="noopener">Mejorar mapa</a>';
  try{const saved=env.storage().getItem(key);if(['ign','mapbox','google'].includes(saved))preferred=saved;}catch{}
 
- const googleKey = env.googleKey ?? GOOGLE_MAPS_BROWSER_KEY;
+ const googleKey = env.googleKey ?? keys.google ?? '';
+ const available = {ign:true,mapbox:accessToken.startsWith('pk.'),google:!!googleKey};
+ for (const option of select.options || []) {
+  option.hidden = option.disabled = !available[option.value];
+ }
+ if (!available[preferred]) preferred = 'ign';
  let googleMap, googleHost, googlePending, googleReady = false, googleFailed = false, googleTimer;
  const wantsGoogle = () => preferred === 'google' && env.navigator.onLine !== false;
  function syncGoogle() {
@@ -149,7 +185,7 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
    loadTimer=win.setTimeout(()=>{loadTimer=null;if(!ready){failed=true;if(wantsMapbox())showIgn('Mapbox está tardando. Se mantiene IGN; puedes volver a seleccionarlo para reintentar.');}},25000);
   }catch{showIgn('Mapbox no está disponible en este dispositivo. Se mantiene IGN.');}finally{pending=null;if(!disposed&&token!==generation&&wantsMapbox())apply();}})();await pending;
  }
- function changed(){preferred=['ign','mapbox','google'].includes(select.value)?select.value:'ign';try{env.storage().setItem(key,preferred);}catch{}apply();}
+ function changed(){preferred=available[select.value]?select.value:'ign';try{env.storage().setItem(key,preferred);}catch{}apply();}
  function connectivity(){apply();}
  function styled(){if(renderer&&wantsMapbox())style();if(googleMap&&wantsGoogle())googleMap.setMapTypeId(googleStyle());}
  select.addEventListener('change',changed);win.addEventListener('online',connectivity);win.addEventListener('offline',connectivity);map.on('move zoom rotate',schedule);map.on('resize',()=>{if(renderer&&wantsMapbox()){renderer.resize();schedule();}});
@@ -434,7 +470,7 @@ function openMenu(which){const panel=$(which==='lines'?'linePanel':'optionsPanel
 $('selectLine').onclick=()=>openMenu('lines');$('optionsToggle').onclick=()=>openMenu('options');$('closeLines').onclick=()=>closeMenus(true);$('closeOptions').onclick=()=>closeMenus(true);$('openSettings').onclick=()=>showOptionsView('settings');$('openDisplay').onclick=()=>showOptionsView('display');$('optionsBack').onclick=()=>showOptionsView($('optionsPanel').dataset.view==='install'?'info':$('optionsPanel').dataset.view==='display'?'settings':'main');$('openOffline').onclick=()=>showOptionsView('offline');$('openGpx').onclick=()=>showOptionsView('gpx');$('openRecording').onclick=()=>showOptionsView('recording');$('openStatistics').onclick=()=>showOptionsView('statistics');$('openInfo').onclick=()=>showOptionsView('info');$('openInstall').onclick=()=>showOptionsView('install');
 document.addEventListener('pointerdown',event=>{if(event.target.closest('#map'))closeMenus();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&(!$('linePanel').hidden||!$('optionsPanel').hidden)){event.preventDefault();if($('optionsPanel').dataset.view!=='main')showOptionsView('main');else closeMenus(true);}});
-$('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&!button.closest('#savedRecordingList')&&!['openDisplay','closeOptions','openSettings','openOffline','openGpx','openInfo','openInstall','installAction','retryWake','retryGps','gpsDiagnosticButton','openRecording','openStatistics','recordingToggle','recordingNew','recordingDownload','optionsBack','download'].includes(button.id))closeMenus(true);});
+$('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&!button.closest('#savedRecordingList')&&!['openDisplay','closeOptions','openSettings','openOffline','openGpx','openInfo','openInstall','installAction','retryWake','retryGps','gpsDiagnosticButton','savePersonalMapKeys','openRecording','openStatistics','recordingToggle','recordingNew','recordingDownload','optionsBack','download'].includes(button.id))closeMenus(true);});
 
 function initMapViewport(map){
  const viewport=window.visualViewport,style=document.documentElement.style;let frame=null,lastWidth=0,lastHeight=0;
@@ -480,6 +516,7 @@ function initMapType(layer,initialType='street'){
  return ()=>{select.removeEventListener('change',change);window.removeEventListener('storage',stored);window.removeEventListener('online',connected);window.removeEventListener('offline',connected);};
 }
 initMapType(background,initialMapType);
+initPersonalMapKeys();
 initMapProvider(map,background);
 routeArrowsController=initRouteArrows(map,()=>current);
 automaticNetwork=createAutomaticNetwork({window,document,navigator,bus:BusOffline,saveRoutes:saveAutomaticRoutes,template:()=>mapTileUrl('street')});if(latestOfflineDataset)automaticNetwork.setData(latestOfflineDataset);
