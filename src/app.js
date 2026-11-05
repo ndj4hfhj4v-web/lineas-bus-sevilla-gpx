@@ -271,6 +271,14 @@ function initRouteRecording(startGps) {
  const toggle = $('recordingToggle');
  const downloadButton = $('recordingDownload');
  const newButton = $('recordingNew');
+ const setting = $('showRecording');
+ const mapButton = $('recordingMapButton');
+ const menuEntry = $('openRecording');
+ const settingKey = 'copiloter-show-recording';
+ let enabled = false;
+ let hideTimer;
+ try { enabled = localStorage.getItem(settingKey) === 'true'; } catch {}
+ setting.checked = enabled;
  let points = [];
  let recording = false;
  let started = 0;
@@ -281,6 +289,11 @@ function initRouteRecording(startGps) {
   if (Array.isArray(stored)) points = stored.filter(p => p && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180 && Number.isFinite(p.lat) && Number.isFinite(p.lon) && Number.isFinite(p.time) && Math.abs(p.time) <= 8640000000000000);
  } catch {}
  function render() {
+  menuEntry.hidden = !enabled;
+  mapButton.setAttribute('aria-pressed', String(recording));
+  const action = recording ? 'Detener grabación' : points.length ? 'Continuar grabación' : 'Iniciar grabación';
+  mapButton.setAttribute('aria-label', action);
+  mapButton.title = action;
   $('recordingMenuLabel').textContent = recording ? '● Grabando ruta' : 'Grabar ruta';
   toggle.textContent = recording ? 'Detener grabación' : points.length ? 'Continuar grabación' : 'Iniciar grabación';
   newButton.hidden = recording || !points.length;
@@ -295,6 +308,7 @@ function initRouteRecording(startGps) {
   } catch { saved = false; }
  }
  toggle.onclick = () => {
+  if (!enabled) return;
   if (recording) {
    recording = false;
    save();
@@ -303,6 +317,30 @@ function initRouteRecording(startGps) {
    started = Date.now();
    split = true;
    startGps();
+  }
+  render();
+ };
+ function revealMapButton() {
+  if (!enabled) return;
+  mapButton.hidden = false;
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => { mapButton.hidden = true; }, 5000);
+ }
+ if (map) {
+  L.DomEvent.disableClickPropagation(mapButton);
+  map.on('click', revealMapButton);
+ }
+ mapButton.onclick = () => {
+  toggle.onclick();
+  revealMapButton();
+ };
+ setting.onchange = () => {
+  if (!setting.checked && recording) toggle.onclick();
+  enabled = setting.checked;
+  try { localStorage.setItem(settingKey, String(enabled)); } catch {}
+  if (!enabled) {
+   clearTimeout(hideTimer);
+   mapButton.hidden = true;
   }
   render();
  };
