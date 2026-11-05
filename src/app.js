@@ -280,7 +280,6 @@ function initRouteRecording(startGps) {
  let latestFix = null;
  const settingKey = 'copiloter-show-recording';
  let enabled = false;
- let hideTimer;
  try { enabled = localStorage.getItem(settingKey) === 'true'; } catch {}
  setting.checked = enabled;
  let points = [];
@@ -309,7 +308,8 @@ function initRouteRecording(startGps) {
   });
  }
  function render() {
-  waypointButton.hidden = mapButton.hidden || !recording;
+  mapButton.hidden = !enabled;
+  waypointButton.hidden = !enabled || !recording;
   menuEntry.hidden = !enabled;
   mapButton.setAttribute('aria-pressed', String(recording));
   const action = recording ? 'Detener grabación' : points.length ? 'Continuar grabación' : 'Iniciar grabación';
@@ -342,32 +342,17 @@ function initRouteRecording(startGps) {
   }
   render();
  };
- function revealMapButton() {
-  if (!enabled) return;
-  mapButton.hidden = false;
-  waypointButton.hidden = !recording;
-  clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => {
-   mapButton.hidden = true;
-   waypointButton.hidden = true;
-  }, 5000);
- }
  if (map) {
   L.DomEvent.disableClickPropagation(mapButton);
   L.DomEvent.disableClickPropagation(waypointButton);
-  map.on('click', revealMapButton);
  }
- mapButton.onclick = () => {
-  toggle.onclick();
-  revealMapButton();
- };
+ mapButton.onclick = toggle.onclick;
  waypointButton.onclick = () => {
   if (!recording) return;
   if (!latestFix || Date.now() - latestFix.time > 15000) {
    waypointButton.title = 'Espera una posición GPS reciente';
    waypointButton.setAttribute('aria-label', waypointButton.title);
    $('recordingStatus').textContent = waypointButton.title;
-   revealMapButton();
    return;
   }
   waypointButton.title = 'Añadir parada o punto';
@@ -376,16 +361,11 @@ function initRouteRecording(startGps) {
   drawWaypoints();
   save();
   render();
-  revealMapButton();
  };
  setting.onchange = () => {
   if (!setting.checked && recording) toggle.onclick();
   enabled = setting.checked;
   try { localStorage.setItem(settingKey, String(enabled)); } catch {}
-  if (!enabled) {
-   clearTimeout(hideTimer);
-   mapButton.hidden = true;
-  }
   drawWaypoints();
   render();
  };
