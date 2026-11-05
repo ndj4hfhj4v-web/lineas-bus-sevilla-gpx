@@ -158,3 +158,10 @@ html[data-zoom-metres="hidden"] .leaflet-control-scale{display:none!important}
 
 .saved-recording-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 0; border-top: 1px solid #78948755; }
 .saved-recording-row strong { flex-basis: 100%; overflow-wrap: anywhere; }
+
+.statistics-list{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.statistics-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;align-items:baseline}
+.statistics-list strong{font-variant-numeric:tabular-nums}
+.statistics-bar{grid-column:1/-1;height:8px;border-radius:8px;background:currentColor;background:color-mix(in srgb,currentColor 16%,transparent);overflow:hidden}
+.statistics-bar span{display:block;height:100%;border-radius:inherit;background:#388263}
+:root[data-theme="night"] .statistics-bar span{background:#83c3a2}
