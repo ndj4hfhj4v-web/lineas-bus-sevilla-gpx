@@ -791,7 +791,9 @@ function initRouteRecording(startGps) {
    };
    const rename = document.createElement('button');
    rename.type = 'button';
-   rename.textContent = 'Editar nombre';
+   rename.title = 'Editar nombre';
+   rename.setAttribute('aria-label', 'Editar nombre');
+   rename.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M4 20l4-.9L20 7l-3-3L5 16l-1 4Z"/></svg>';
    rename.onclick = () => {
     const name = window.prompt('Nombre de la ruta', route.name)?.trim().slice(0, 100);
     if (!name || name === route.name) return;
@@ -803,11 +805,14 @@ function initRouteRecording(startGps) {
    };
    const exportButton = document.createElement('button');
    exportButton.type = 'button';
-   exportButton.textContent = 'Descargar GPX';
+   exportButton.title = 'Descargar GPX';
+   exportButton.setAttribute('aria-label', 'Descargar GPX');
+   exportButton.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg>';
    exportButton.onclick = () => exportRoute(route);
    const deleteButton = document.createElement('button');
    deleteButton.type = 'button';
-   deleteButton.textContent = 'Borrar';
+   deleteButton.title = 'Borrar';
+   deleteButton.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M9 6V3h6v3m3 0-1 14H7L6 6m4 4v6m4-6v6"/></svg>';
    deleteButton.setAttribute('aria-label', 'Borrar ' + route.name);
    deleteButton.onclick = () => {
     if (!window.confirm('¿Borrar «' + route.name + '» de tus rutas guardadas?')) return;
