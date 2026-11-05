@@ -176,12 +176,16 @@ html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom
 .google-maps-background a{pointer-events:auto}
 
 .map-app #openStatistics {
- background: repeating-conic-gradient(#202020 0% 25%, #fff 0% 50%) 0 0 / 24px 24px;
- border-color: #202020;
- color: #fff;
+ position: relative;
+ padding-inline-end: 28px;
+ overflow: hidden;
 }
-.map-app #openStatistics > span {
- padding: 2px 8px;
- border-radius: 5px;
- background: #202020;
+.map-app #openStatistics::after {
+ content: "";
+ position: absolute;
+ inset-block: 0;
+ inset-inline-end: 0;
+ width: 12px;
+ background: repeating-conic-gradient(#52635a 0% 25%, #e5eae6 0% 50%) 0 0 / 12px 12px;
+ pointer-events: none;
 }
