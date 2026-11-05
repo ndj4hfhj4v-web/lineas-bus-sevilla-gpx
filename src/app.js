@@ -658,6 +658,7 @@ function initRouteRecording(startGps) {
  const mapButton = $('recordingMapButton');
  const list = $('savedRecordingList');
  let routes = [];
+ const visibleRoutes = new Map();
  let nextNumber = 1;
  const waypointButton = $('recordingWaypoint');
  const waypointLayer = map ? L.layerGroup() : null;
@@ -744,24 +745,37 @@ function initRouteRecording(startGps) {
   for (const route of routes) {
    const row = document.createElement('div');
    row.className = 'saved-recording-row';
-   const title = document.createElement('strong');
+   const title = document.createElement('button');
+   title.type = 'button';
+   title.className = 'saved-recording-title';
    title.textContent = route.name;
-   const open = document.createElement('button');
-   open.type = 'button';
-   open.textContent = 'Abrir en el mapa';
-   open.setAttribute('aria-label', 'Abrir ' + route.name + ' en el mapa');
-   open.disabled = !map || !route.points.length;
-   open.onclick = () => {
-    const paths = [];
-    for (const point of route.points) {
-     if (!paths.length || point.split) paths.push([]);
-     paths.at(-1).push([point.lon, point.lat]);
+   title.setAttribute('aria-pressed', String(visibleRoutes.has(route)));
+   title.disabled = !map || !route.points.length;
+   title.onclick = () => {
+    const existing = visibleRoutes.get(route);
+    if (existing) {
+     existing.remove();
+     visibleRoutes.delete(route);
+    } else {
+     const paths = [];
+     for (const point of route.points) {
+      if (!paths.length || point.split) paths.push([]);
+      paths.at(-1).push([point.lat, point.lon]);
+     }
+     const layer = L.featureGroup();
+     for (const path of paths) {
+      if (path.length === 1) L.circleMarker(path[0], {radius: 5, color: '#315e46'}).addTo(layer);
+      else L.polyline(path, {color: '#315e46', weight: 5, opacity: .9}).addTo(layer);
+     }
+     route.waypoints.forEach((point, index) => {
+      L.circleMarker([point.lat, point.lon], {radius: 5, color: '#244b3b', weight: 2, fillColor: '#e2f3a2', fillOpacity: 1})
+       .bindTooltip('Punto ' + (index + 1)).addTo(layer);
+     });
+     layer.addTo(map);
+     visibleRoutes.set(route, layer);
+     map.fitBounds(layer.getBounds(), {padding: [30, 50], maxZoom: 17, animate: false});
     }
-    const stops = route.waypoints.map((point, index) => ({
-     geometry: {x: point.lon, y: point.lat},
-     attributes: {Nombre: 'Punto ' + (index + 1), Nodo: index + 1}
-    }));
-    openCustomRoute({attributes: {NombreRuta: route.name}, geometry: {paths}, stops});
+    title.setAttribute('aria-pressed', String(visibleRoutes.has(route)));
    };
    const rename = document.createElement('button');
    rename.type = 'button';
@@ -789,19 +803,17 @@ function initRouteRecording(startGps) {
     if (index === -1) return;
     routes.splice(index, 1);
     if (!save()) routes.splice(index, 0, route);
+    else {
+     visibleRoutes.get(route)?.remove();
+     visibleRoutes.delete(route);
+    }
     renderLibrary();
     render();
    };
-   const more = document.createElement('details');
-   more.className = 'saved-recording-actions';
-   const summary = document.createElement('summary');
-   summary.textContent = 'Más';
-   summary.setAttribute('aria-label', 'Más acciones para ' + route.name);
    const actions = document.createElement('div');
-   actions.className = 'actions';
+   actions.className = 'saved-recording-actions';
    actions.append(rename, exportButton, deleteButton);
-   more.append(summary, actions);
-   row.append(title, open, more);
+   row.append(title, actions);
    list.append(row);
   }
  }

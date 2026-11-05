@@ -153,8 +153,13 @@ html[data-zoom-metres="hidden"] .leaflet-control-scale{display:none!important}
 
 .map-app #gpsDetail[data-navigating="true"][data-options-hidden="true"]:not([data-menu-open="true"]) .map-recording { opacity: 0; visibility: hidden; pointer-events: none; }
 
-.saved-recording-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 0; border-top: 1px solid #78948755; }
-.saved-recording-row strong { flex-basis: 100%; overflow-wrap: anywhere; }
+.saved-recording-row{display:grid;gap:8px;padding:8px;border:1px solid #78948755;border-radius:12px;margin-bottom:8px}
+.map-app .saved-recording-title{width:100%;text-align:left;font-weight:650;overflow-wrap:anywhere;background:#244b3b;color:#fff;border-color:#244b3b}
+.map-app .saved-recording-title[aria-pressed="true"]{background:#cbded2;color:#183c2c;border-color:#8aad98}
+:root[data-theme="night"] .map-app .saved-recording-title:not([aria-pressed="true"]):hover{background:#244b3b}
+:root[data-theme="night"] .map-app .saved-recording-title[aria-pressed="true"]:hover{background:#cbded2}
+.saved-recording-actions{display:flex;flex-wrap:wrap;gap:6px}
+.saved-recording-actions button{flex:1 1 auto;padding:6px 8px;font-size:12px}
 
 .statistics-list{list-style:none;margin:0;padding:0;display:grid;gap:14px}
 .statistics-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;align-items:baseline}
@@ -234,6 +239,4 @@ html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom
 .recording-controls{margin-top:12px}
 .recording-controls #recordingStatus:empty,.recording-controls .actions:not(:has(button:not([hidden]))){display:none}
 .recording-gpx{margin-top:12px;padding-top:12px;border-top:1px solid #78948755}
-.recording-gpx summary,.saved-recording-actions summary{cursor:pointer;min-height:44px;padding:10px 0;font-weight:600}
-.saved-recording-actions{flex:1}
-.saved-recording-actions[open]{flex-basis:100%}
+.recording-gpx summary{cursor:pointer;min-height:44px;padding:10px 0;font-weight:600}
