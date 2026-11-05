@@ -14,7 +14,8 @@ function loadMapboxSdk(doc=document,win=window){
  mapboxSdkPromise=new Promise((resolve,reject)=>{const css=doc.createElement('link');css.rel='stylesheet';css.href='https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.css';doc.head.append(css);const script=doc.createElement('script');script.src='https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.js';script.async=true;const timer=win.setTimeout(()=>{script.remove();reject(Error('Mapbox no respondió.'));},20000);script.onload=()=>{win.clearTimeout(timer);win.mapboxgl?resolve(win.mapboxgl):reject(Error('Mapbox no está disponible.'));};script.onerror=()=>{win.clearTimeout(timer);script.remove();reject(Error('No se ha podido cargar Mapbox.'));};doc.head.append(script);}).catch(error=>{mapboxSdkPromise=null;throw error;});return mapboxSdkPromise;
 }
 function initMapProvider(map,ign,env={window,document,navigator,storage:()=>localStorage,loadSdk:()=>loadMapboxSdk()}){
- const accessToken=env.accessToken??MAPBOX_PUBLIC_TOKEN,win=env.window,doc=env.document,root=doc.documentElement,select=doc.getElementById('mapProvider'),status=doc.getElementById('mapProviderStatus'),key='bus-copilot-map-provider';let preferred='mapbox',renderer=null,host=null,pending=null,ready=false,disposed=false,generation=0,frame=null,styleKey='',credited=false,loadTimer=null,failed=false;
+ const accessToken=env.accessToken??MAPBOX_PUBLIC_TOKEN,win=env.window,doc=env.document,root=doc.documentElement,select=doc.getElementById('mapProvider'),status=doc.getElementById('mapProviderStatus'),key='bus-copilot-map-provider';let preferred='mapbox',renderer=null,host=null,pending=null,ready=false,disposed=false,generation=0,frame=null,styleKey='',credited=false,loadTimer=null,failed=false,aerialFailed=false;
+ const aerialFallback='No se han podido cargar las imágenes de Mapbox. Se muestra la vista aérea del IGN.';
  const attribution='<a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <a href="https://apps.mapbox.com/feedback/" target="_blank" rel="noopener">Mejorar mapa</a>';
  try{preferred=env.storage().getItem(key)==='ign'?'ign':'mapbox';}catch{}
  function setStatus(text){status.textContent=text;status.hidden=!text;}
@@ -25,19 +26,25 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
  function showIgn(message=''){if(!map.hasLayer(ign))ign.addTo(map);if(host)host.style.visibility='hidden';if(credited){map.attributionControl?.removeAttribution(attribution);credited=false;}root.dataset.mapProvider='ign';setStatus(message);}
  function sync(){frame=null;if(disposed||!renderer||!wantsMapbox())return;try{renderer.jumpTo(mapboxCamera(map));}catch{showIgn('Mapbox no está disponible. Mostrando IGN.');}}
  function schedule(){if(frame===null)frame=win.requestAnimationFrame(sync);}
- function showMapbox(){if(disposed||!ready||!wantsMapbox())return;clearLoadTimer();renderer.resize();sync();if(map.hasLayer(ign))map.removeLayer(ign);host.style.visibility='visible';if(!credited){map.attributionControl?.addAttribution(attribution);credited=true;}root.dataset.mapProvider='mapbox';setStatus('');}
- function style(){if(!renderer)return;const next=type()+'|'+(type()==='street'&&dark());if(next===styleKey)return;styleKey=next;ready=false;showIgn('Cargando Mapbox…');renderer.setStyle(mapboxStyle(type(),dark()),{diff:false});}
+ function showMapbox(){if(disposed||!ready||aerialFailed||!wantsMapbox())return;clearLoadTimer();renderer.resize();sync();if(map.hasLayer(ign))map.removeLayer(ign);host.style.visibility='visible';if(!credited){map.attributionControl?.addAttribution(attribution);credited=true;}root.dataset.mapProvider='mapbox';setStatus('');}
+ function style(){if(!renderer)return;const next=type()+'|'+(type()==='street'&&dark());if(next===styleKey)return;styleKey=next;ready=false;failed=false;aerialFailed=false;showIgn('Cargando Mapbox…');renderer.setStyle(mapboxStyle(type(),dark()),{diff:false});}
  async function apply(){
   select.value=preferred;if(!map||!ign){select.disabled=true;return;}
   if(!wantsMapbox()){generation++;showIgn(preferred==='mapbox'?'Sin conexión: se utiliza el mapa de IGN guardado en este dispositivo.':'');return;}
   if(!accessToken.startsWith('pk.')){showIgn('Mapbox pendiente de configuración. Se mantiene IGN.');return;}
-  if(renderer&&failed){renderer.remove();host?.remove();renderer=host=null;ready=false;failed=false;styleKey='';clearLoadTimer();}
-  if(renderer){style();if(ready)showMapbox();return;}
+  if(renderer&&failed){renderer.remove();host?.remove();renderer=host=null;ready=false;failed=false;aerialFailed=false;styleKey='';clearLoadTimer();}
+  if(renderer){style();if(aerialFailed)showIgn(aerialFallback);else if(ready)showMapbox();return;}
   if(pending)return;const token=++generation;setStatus('Cargando Mapbox…');
   pending=(async()=>{try{const sdk=await env.loadSdk();if(disposed||token!==generation||!wantsMapbox())return;if(!sdk.supported())throw Error('WebGL no disponible');
    host=doc.createElement('div');host.className='mapbox-background';host.style.visibility='hidden';host.setAttribute('aria-hidden','true');map.getContainer().prepend(host);
    renderer=new sdk.Map({container:host,accessToken,style:mapboxStyle(type(),dark()),...mapboxCamera(map),projection:'mercator',language:'es',interactive:false,attributionControl:false,logoPosition:'bottom-left',antialias:false,fadeDuration:0,renderWorldCopies:false,maxPitch:0});styleKey=type()+'|'+(type()==='street'&&dark());
-   renderer.on('idle',()=>{if(!ready){ready=true;failed=false;showMapbox();}});renderer.on('load',()=>{ready=true;failed=false;showMapbox();});renderer.on('error',()=>{if(!ready){failed=true;showIgn('No se ha podido cargar Mapbox. Se mantiene IGN.');}});
+   renderer.on('idle',()=>{if(!ready&&!aerialFailed){ready=true;failed=false;showMapbox();}});renderer.on('load',()=>{if(type()!=='aerial'&&!aerialFailed){ready=true;failed=false;showMapbox();}});
+   renderer.on('error',event=>{
+    if(type()==='aerial'&&(event.sourceId==='mapbox-satellite'||event.source?.id==='mapbox-satellite'||event.error?.url?.includes('/mapbox.satellite'))){
+     aerialFailed=true;ready=false;clearLoadTimer();
+     if(wantsMapbox())showIgn(aerialFallback);
+    }else if(!ready&&!aerialFailed&&wantsMapbox()){failed=true;showIgn('No se ha podido cargar Mapbox. Se mantiene IGN.');}
+   });
    renderer.on('webglcontextlost',()=>{ready=false;failed=true;showIgn('Mapbox ha perdido la imagen. Se mantiene IGN.');});renderer.on('webglcontextrestored',()=>{ready=true;failed=false;showMapbox();});
    loadTimer=win.setTimeout(()=>{loadTimer=null;if(!ready){failed=true;showIgn('Mapbox está tardando. Se mantiene IGN; puedes volver a seleccionarlo para reintentar.');}},25000);
   }catch{showIgn('Mapbox no está disponible en este dispositivo. Se mantiene IGN.');}finally{pending=null;if(!disposed&&token!==generation&&wantsMapbox())apply();}})();await pending;
