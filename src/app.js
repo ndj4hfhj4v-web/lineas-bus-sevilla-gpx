@@ -658,6 +658,7 @@ function initRouteRecording(startGps) {
  const mapButton = $('recordingMapButton');
  const list = $('savedRecordingList');
  let routes = [];
+ let exampleAdded = false;
  const visibleRoutes = new Map();
  let nextNumber = 1;
  const waypointButton = $('recordingWaypoint');
@@ -676,17 +677,28 @@ function initRouteRecording(startGps) {
  try {
   storedValue = localStorage.getItem(key);
   const stored = JSON.parse(storedValue || '[]');
+  exampleAdded = stored?.exampleAdded === true;
   const validPoint = p => p && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180 && Number.isFinite(p.lat) && Number.isFinite(p.lon) && Number.isFinite(p.time) && Math.abs(p.time) <= 8640000000000000;
   const track = Array.isArray(stored) ? stored : stored?.points;
   if (Array.isArray(track)) points = track.filter(validPoint);
   if (Array.isArray(stored?.waypoints)) waypoints = stored.waypoints.filter(validPoint);
   if (Array.isArray(stored?.routes)) {
    routes = stored.routes.filter(route => route && typeof route.name === 'string' && Array.isArray(route.points) && Array.isArray(route.waypoints));
-   nextNumber = Math.max(routes.length + 1, Number.isSafeInteger(stored.nextNumber) ? stored.nextNumber : 1);
+   nextNumber = Math.max(routes.filter(route => !route.example).length + 1, Number.isSafeInteger(stored.nextNumber) ? stored.nextNumber : 1);
   } else if (points.length) {
    archive();
   }
  } catch {}
+ if (!exampleAdded) {
+  const examplePoints = [
+   [37.392003, -6.009209], [37.391555, -6.009326], [37.391199, -6.009406],
+   [37.390686, -6.009551], [37.390706, -6.009664], [37.390792, -6.010147],
+   [37.390743, -6.010236], [37.390566, -6.010512]
+  ].map(([lat, lon], index) => ({lat, lon, time: Date.UTC(2026, 0, 1, 12, index)}));
+  routes.push({name: 'Ruta de ejemplo (ficticia)', example: true, points: examplePoints,
+   waypoints: [examplePoints[2], examplePoints[6]]});
+  exampleAdded = true;
+ }
  function drawWaypoints() {
   if (!waypointLayer) return;
   waypointLayer.clearLayers();
@@ -718,7 +730,7 @@ function initRouteRecording(startGps) {
  function save() {
   try {
    if (localStorage.getItem(key) !== storedValue) throw Error('La biblioteca cambió en otra pestaña');
-   const updated = JSON.stringify({points, waypoints, routes, nextNumber});
+   const updated = JSON.stringify({points, waypoints, routes, nextNumber, exampleAdded});
    localStorage.setItem(key, updated);
    storedValue = updated;
    saved = true;
