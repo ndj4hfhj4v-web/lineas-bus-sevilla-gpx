@@ -170,3 +170,7 @@ html[data-zoom-metres="hidden"] .leaflet-control-scale{display:none!important}
 .next-stop strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .next-stop span{font-variant-numeric:tabular-nums;white-space:nowrap}
 .next-stop[hidden]{display:none}
+
+.google-maps-background{position:absolute!important;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom:20px}
+.google-maps-background a{pointer-events:auto}

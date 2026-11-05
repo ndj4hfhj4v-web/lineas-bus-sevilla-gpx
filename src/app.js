@@ -13,24 +13,124 @@ function loadMapboxSdk(doc=document,win=window){
  if(win.mapboxgl)return Promise.resolve(win.mapboxgl);if(mapboxSdkPromise)return mapboxSdkPromise;
  mapboxSdkPromise=new Promise((resolve,reject)=>{const css=doc.createElement('link');css.rel='stylesheet';css.href='https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.css';doc.head.append(css);const script=doc.createElement('script');script.src='https://api.mapbox.com/mapbox-gl-js/v3.33.0/mapbox-gl.js';script.async=true;const timer=win.setTimeout(()=>{script.remove();reject(Error('Mapbox no respondió.'));},20000);script.onload=()=>{win.clearTimeout(timer);win.mapboxgl?resolve(win.mapboxgl):reject(Error('Mapbox no está disponible.'));};script.onerror=()=>{win.clearTimeout(timer);script.remove();reject(Error('No se ha podido cargar Mapbox.'));};doc.head.append(script);}).catch(error=>{mapboxSdkPromise=null;throw error;});return mapboxSdkPromise;
 }
+
+const GOOGLE_MAPS_BROWSER_KEY="__COPILOTER_GOOGLE_MAPS_BROWSER_KEY__";
+let googleMapsSdkPromise;
+function loadGoogleMapsSdk(key, doc, win, onAuthFailure) {
+ win.gm_authFailure = onAuthFailure;
+ if (win.google?.maps?.importLibrary) return win.google.maps.importLibrary('maps');
+ if (googleMapsSdkPromise) return googleMapsSdkPromise;
+ googleMapsSdkPromise = new Promise((resolve, reject) => {
+  const script = doc.createElement('script');
+  const callback = 'copiloterGoogleMapsReady';
+  const params = new URLSearchParams({key, v:'quarterly', loading:'async', callback, language:'es'});
+  script.src = 'https://maps.googleapis.com/maps/api/js?' + params;
+  script.async = true;
+  const fail = () => {
+   win.clearTimeout(timeout);
+   script.remove();
+   delete win[callback];
+   reject(Error('Google Maps no respondió.'));
+  };
+  const timeout = win.setTimeout(fail, 20000);
+  script.onerror = fail;
+  win[callback] = () => {
+   win.clearTimeout(timeout);
+   delete win[callback];
+   resolve(win.google.maps.importLibrary('maps'));
+  };
+  doc.head.append(script);
+ }).catch(error => { googleMapsSdkPromise = null; throw error; });
+ return googleMapsSdkPromise;
+}
+
 function initMapProvider(map,ign,env={window,document,navigator,storage:()=>localStorage,loadSdk:()=>loadMapboxSdk()}){
  const accessToken=env.accessToken??MAPBOX_PUBLIC_TOKEN,win=env.window,doc=env.document,root=doc.documentElement,select=doc.getElementById('mapProvider'),status=doc.getElementById('mapProviderStatus'),key='bus-copilot-map-provider';let preferred='mapbox',renderer=null,host=null,pending=null,ready=false,disposed=false,generation=0,frame=null,styleKey='',credited=false,loadTimer=null,failed=false,aerialFailed=false;
  const aerialFallback='No se han podido cargar las imágenes de Mapbox. Se muestra la vista aérea del IGN.';
  const attribution='<a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <a href="https://apps.mapbox.com/feedback/" target="_blank" rel="noopener">Mejorar mapa</a>';
- try{preferred=env.storage().getItem(key)==='ign'?'ign':'mapbox';}catch{}
+ try{const saved=env.storage().getItem(key);if(['ign','mapbox','google'].includes(saved))preferred=saved;}catch{}
+
+ const googleKey = env.googleKey ?? GOOGLE_MAPS_BROWSER_KEY;
+ let googleMap, googleHost, googlePending, googleReady = false, googleFailed = false, googleTimer;
+ const wantsGoogle = () => preferred === 'google' && env.navigator.onLine !== false;
+ function syncGoogle() {
+  if (!googleMap || !wantsGoogle() || googleFailed) return;
+  const camera = mapboxCamera(map);
+  googleMap.moveCamera({center:{lat:camera.center[1],lng:camera.center[0]},zoom:camera.zoom + 1,
+   heading:((camera.bearing % 360) + 360) % 360,tilt:0});
+ }
+ function googleStyle() {
+  return {street:'roadmap',aerial:'hybrid',topographic:'terrain'}[type()] || 'roadmap';
+ }
+ function googleFailure(message) {
+  win.clearTimeout(googleTimer);
+  googleFailed = true;
+  if (!disposed && wantsGoogle()) showIgn(message);
+ }
+ function showGoogle() {
+  if (disposed || !wantsGoogle() || googleFailed || !googleReady) return;
+  if (googleMap.getRenderingType() !== 'VECTOR') {
+   googleFailure('Google Maps no admite el giro del mapa en este dispositivo. Se muestra IGN.');
+   return;
+  }
+  win.clearTimeout(googleTimer);
+  syncGoogle();
+  if (map.hasLayer(ign)) map.removeLayer(ign);
+  googleHost.style.visibility = 'visible';
+  root.dataset.mapProvider = 'google';
+  setStatus('');
+ }
+ async function applyGoogle() {
+  if (!googleKey || googleKey.startsWith('__')) {
+   showIgn('Google Maps está pendiente de configuración. Se muestra IGN.');
+   return;
+  }
+  if (googleFailed) {
+   showIgn('Google Maps no está disponible. Se muestra IGN.');
+   return;
+  }
+  if (googleMap) {
+   googleMap.setMapTypeId(googleStyle());
+   showGoogle();
+   return;
+  }
+  if (googlePending) return;
+  showIgn('Cargando Google Maps…');
+  googlePending = true;
+  try {
+   const sdk = await (env.loadGoogleSdk || loadGoogleMapsSdk)(googleKey, doc, win,
+    () => googleFailure('Google Maps rechazó la clave o la facturación. Se muestra IGN.'));
+   if (disposed || !wantsGoogle() || googleFailed) return;
+   googleHost = doc.createElement('div');
+   googleHost.className = 'google-maps-background';
+   googleHost.style.visibility = 'hidden';
+   map.getContainer().prepend(googleHost);
+   const center = map.getCenter();
+   googleMap = new sdk.Map(googleHost, {center:{lat:center.lat,lng:center.lng},zoom:map.getZoom(),
+    renderingType:sdk.RenderingType.VECTOR,mapTypeId:googleStyle(),disableDefaultUI:true,
+    clickableIcons:false,gestureHandling:'none',keyboardShortcuts:false,isFractionalZoomEnabled:true});
+   googleMap.addListener('tilesloaded', () => {googleReady = true;showGoogle();});
+   googleTimer = win.setTimeout(() => googleFailure('Google Maps tardó demasiado. Se muestra IGN.'), 25000);
+  } catch {
+   googleFailure('No se ha podido cargar Google Maps. Se muestra IGN.');
+  } finally { googlePending = false; }
+ }
+
  function setStatus(text){status.textContent=text;status.hidden=!text;}
  function type(){return root.dataset.mapType||'street';}
  function dark(){return root.dataset.theme==='night';}
  function wantsMapbox(){return preferred==='mapbox'&&env.navigator.onLine!==false;}
  function clearLoadTimer(){if(loadTimer!==null)win.clearTimeout(loadTimer);loadTimer=null;}
- function showIgn(message=''){if(!map.hasLayer(ign))ign.addTo(map);if(host)host.style.visibility='hidden';if(credited){map.attributionControl?.removeAttribution(attribution);credited=false;}root.dataset.mapProvider='ign';setStatus(message);}
- function sync(){frame=null;if(disposed||!renderer||!wantsMapbox())return;try{renderer.jumpTo(mapboxCamera(map));}catch{showIgn('Mapbox no está disponible. Mostrando IGN.');}}
+ function showIgn(message=''){if(!map.hasLayer(ign))ign.addTo(map);if(host)host.style.visibility='hidden';if(googleHost)googleHost.style.visibility='hidden';if(credited){map.attributionControl?.removeAttribution(attribution);credited=false;}root.dataset.mapProvider='ign';setStatus(message);}
+ function sync(){frame=null;if(wantsGoogle()){syncGoogle();return;}if(disposed||!renderer||!wantsMapbox())return;try{renderer.jumpTo(mapboxCamera(map));}catch{showIgn('Mapbox no está disponible. Mostrando IGN.');}}
  function schedule(){if(frame===null)frame=win.requestAnimationFrame(sync);}
  function showMapbox(){if(disposed||!ready||aerialFailed||!wantsMapbox())return;clearLoadTimer();renderer.resize();sync();if(map.hasLayer(ign))map.removeLayer(ign);host.style.visibility='visible';if(!credited){map.attributionControl?.addAttribution(attribution);credited=true;}root.dataset.mapProvider='mapbox';setStatus('');}
  function style(){if(!renderer)return;const next=type()+'|'+(type()==='street'&&dark());if(next===styleKey)return;styleKey=next;ready=false;failed=false;aerialFailed=false;showIgn('Cargando Mapbox…');renderer.setStyle(mapboxStyle(type(),dark()),{diff:false});}
  async function apply(){
   select.value=preferred;if(!map||!ign){select.disabled=true;return;}
-  if(!wantsMapbox()){generation++;showIgn(preferred==='mapbox'?'Sin conexión: se utiliza el mapa de IGN guardado en este dispositivo.':'');return;}
+  if(wantsGoogle()){generation++;if(root.dataset.mapProvider!=='google')showIgn('Cargando Google Maps…');await applyGoogle();return;}
+  if(!wantsMapbox()){generation++;showIgn(preferred!=='ign'?'Sin conexión: se utiliza el mapa de IGN guardado en este dispositivo.':'');return;}
+  if(root.dataset.mapProvider==='google')showIgn('Cargando Mapbox…');
   if(!accessToken.startsWith('pk.')){showIgn('Mapbox pendiente de configuración. Se mantiene IGN.');return;}
   if(renderer&&failed){renderer.remove();host?.remove();renderer=host=null;ready=false;failed=false;aerialFailed=false;styleKey='';clearLoadTimer();}
   if(renderer){style();if(aerialFailed)showIgn(aerialFallback);else if(ready)showMapbox();return;}
@@ -45,16 +145,16 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
      if(wantsMapbox())showIgn(aerialFallback);
     }else if(!ready&&!aerialFailed&&wantsMapbox()){failed=true;showIgn('No se ha podido cargar Mapbox. Se mantiene IGN.');}
    });
-   renderer.on('webglcontextlost',()=>{ready=false;failed=true;showIgn('Mapbox ha perdido la imagen. Se mantiene IGN.');});renderer.on('webglcontextrestored',()=>{ready=true;failed=false;showMapbox();});
-   loadTimer=win.setTimeout(()=>{loadTimer=null;if(!ready){failed=true;showIgn('Mapbox está tardando. Se mantiene IGN; puedes volver a seleccionarlo para reintentar.');}},25000);
+   renderer.on('webglcontextlost',()=>{ready=false;failed=true;if(wantsMapbox())showIgn('Mapbox ha perdido la imagen. Se mantiene IGN.');});renderer.on('webglcontextrestored',()=>{ready=true;failed=false;showMapbox();});
+   loadTimer=win.setTimeout(()=>{loadTimer=null;if(!ready){failed=true;if(wantsMapbox())showIgn('Mapbox está tardando. Se mantiene IGN; puedes volver a seleccionarlo para reintentar.');}},25000);
   }catch{showIgn('Mapbox no está disponible en este dispositivo. Se mantiene IGN.');}finally{pending=null;if(!disposed&&token!==generation&&wantsMapbox())apply();}})();await pending;
  }
- function changed(){preferred=select.value==='mapbox'?'mapbox':'ign';try{env.storage().setItem(key,preferred);}catch{}apply();}
+ function changed(){preferred=['ign','mapbox','google'].includes(select.value)?select.value:'ign';try{env.storage().setItem(key,preferred);}catch{}apply();}
  function connectivity(){apply();}
- function styled(){if(renderer&&wantsMapbox())style();}
+ function styled(){if(renderer&&wantsMapbox())style();if(googleMap&&wantsGoogle())googleMap.setMapTypeId(googleStyle());}
  select.addEventListener('change',changed);win.addEventListener('online',connectivity);win.addEventListener('offline',connectivity);map.on('move zoom rotate',schedule);map.on('resize',()=>{if(renderer&&wantsMapbox()){renderer.resize();schedule();}});
  const observer=new win.MutationObserver(styled);observer.observe(root,{attributes:true,attributeFilter:['data-theme','data-map-type']});apply();
- return {refresh:apply,destroy(){disposed=true;generation++;clearLoadTimer();observer.disconnect();select.removeEventListener('change',changed);win.removeEventListener('online',connectivity);win.removeEventListener('offline',connectivity);map.off('move zoom rotate',schedule);if(frame!==null)win.cancelAnimationFrame(frame);renderer?.remove();host?.remove();showIgn();}};
+ return {refresh:apply,destroy(){disposed=true;generation++;clearLoadTimer();observer.disconnect();select.removeEventListener('change',changed);win.removeEventListener('online',connectivity);win.removeEventListener('offline',connectivity);map.off('move zoom rotate',schedule);if(frame!==null)win.cancelAnimationFrame(frame);renderer?.remove();host?.remove();win.clearTimeout(googleTimer);googleHost?.remove();showIgn();}};
 }
 
 const initialMapType=readMapType();
