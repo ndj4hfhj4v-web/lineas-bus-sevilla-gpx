@@ -108,7 +108,6 @@ html:has(body.map-app){height:100%;overflow:hidden;overscroll-behavior:none;-web
 
 .map-app #optionsPanel[data-view="main"]{width:min(270px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}.map-app #optionsPanel[data-view="settings"]{width:min(330px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}.map-app #optionsMain .menu-entry{margin-bottom:8px}.map-app #optionsMain .statusbar{padding:0;margin:0}.map-app #optionsMain #refresh{width:100%;min-height:48px;font-size:14px;text-align:left;padding:11px 15px}.map-app #offlineView .offline-tools{padding-top:0}
 
-.map-app #optionsPanel[data-view="gpx"]{width:min(330px,calc(100% - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px))}
 
 .map-settings{margin-bottom:16px}.map-app .map-settings select{margin-bottom:0}:root[data-theme="night"][data-map-type="aerial"] .leaflet-tile{filter:brightness(.86) saturate(.9) contrast(1.08)}:root[data-map-type="aerial"] .leaflet-overlay-pane path[stroke="#315e46"]{filter:drop-shadow(0 0 2px #fff)}
 
@@ -144,7 +143,6 @@ html[data-zoom-metres="hidden"] .leaflet-control-scale{display:none!important}
 
 #openOffline[hidden]{display:none!important}
 
-#openGpx[hidden]{display:none!important}
 
 #openRecording[hidden], .map-recording[hidden] { display: none !important; }
 #map .map-recording { position: absolute; z-index: 1000; right: calc(env(safe-area-inset-right, 0px) + 14px); bottom: calc(env(safe-area-inset-bottom, 0px) + 224px); width: 48px; height: 48px; padding: 0; display: grid; place-items: center; border: 2px solid white; border-radius: 50%; background: #c92119; color: white; box-shadow: 0 2px 10px #0003; touch-action: manipulation; }
