@@ -274,6 +274,10 @@ function initRouteRecording(startGps) {
  const setting = $('showRecording');
  const mapButton = $('recordingMapButton');
  const menuEntry = $('openRecording');
+ const waypointButton = $('recordingWaypoint');
+ const waypointLayer = map ? L.layerGroup() : null;
+ let waypoints = [];
+ let latestFix = null;
  const settingKey = 'copiloter-show-recording';
  let enabled = false;
  let hideTimer;
@@ -286,9 +290,26 @@ function initRouteRecording(startGps) {
  let split = true;
  try {
   const stored = JSON.parse(localStorage.getItem(key) || '[]');
-  if (Array.isArray(stored)) points = stored.filter(p => p && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180 && Number.isFinite(p.lat) && Number.isFinite(p.lon) && Number.isFinite(p.time) && Math.abs(p.time) <= 8640000000000000);
+  const validPoint = p => p && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180 && Number.isFinite(p.lat) && Number.isFinite(p.lon) && Number.isFinite(p.time) && Math.abs(p.time) <= 8640000000000000;
+  const track = Array.isArray(stored) ? stored : stored?.points;
+  if (Array.isArray(track)) points = track.filter(validPoint);
+  if (Array.isArray(stored?.waypoints)) waypoints = stored.waypoints.filter(validPoint);
  } catch {}
+ function drawWaypoints() {
+  if (!waypointLayer) return;
+  waypointLayer.clearLayers();
+  if (!enabled) {
+   waypointLayer.remove();
+   return;
+  }
+  if (!map.hasLayer(waypointLayer)) waypointLayer.addTo(map);
+  waypoints.forEach((point, index) => {
+   L.circleMarker([point.lat, point.lon], {radius: 7, color: '#fff', weight: 2, fillColor: '#244b3b', fillOpacity: 1})
+    .bindTooltip('Punto ' + (index + 1)).addTo(waypointLayer);
+  });
+ }
  function render() {
+  waypointButton.hidden = mapButton.hidden || !recording;
   menuEntry.hidden = !enabled;
   mapButton.setAttribute('aria-pressed', String(recording));
   const action = recording ? 'Detener grabación' : points.length ? 'Continuar grabación' : 'Iniciar grabación';
@@ -299,11 +320,11 @@ function initRouteRecording(startGps) {
   newButton.hidden = recording || !points.length;
   downloadButton.disabled = recording || !points.length;
   const status = recording ? (points.length ? 'Grabando · ' + points.length + ' puntos' : 'Esperando una posición GPS reciente…') : (points.length ? points.length + ' puntos grabados' : 'No hay una ruta grabada.');
-  $('recordingStatus').textContent = status + (saved ? '' : ' · El navegador no ha podido guardar la ruta en este dispositivo.');
+  $('recordingStatus').textContent = status + (waypoints.length ? ' · ' + waypoints.length + ' marcas' : '') + (saved ? '' : ' · El navegador no ha podido guardar la ruta en este dispositivo.');
  }
  function save() {
   try {
-   localStorage.setItem(key, JSON.stringify(points));
+   localStorage.setItem(key, JSON.stringify({points, waypoints}));
    saved = true;
   } catch { saved = false; }
  }
@@ -314,6 +335,7 @@ function initRouteRecording(startGps) {
    save();
   } else {
    recording = true;
+   latestFix = null;
    started = Date.now();
    split = true;
    startGps();
@@ -323,15 +345,37 @@ function initRouteRecording(startGps) {
  function revealMapButton() {
   if (!enabled) return;
   mapButton.hidden = false;
+  waypointButton.hidden = !recording;
   clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => { mapButton.hidden = true; }, 5000);
+  hideTimer = setTimeout(() => {
+   mapButton.hidden = true;
+   waypointButton.hidden = true;
+  }, 5000);
  }
  if (map) {
   L.DomEvent.disableClickPropagation(mapButton);
+  L.DomEvent.disableClickPropagation(waypointButton);
   map.on('click', revealMapButton);
  }
  mapButton.onclick = () => {
   toggle.onclick();
+  revealMapButton();
+ };
+ waypointButton.onclick = () => {
+  if (!recording) return;
+  if (!latestFix || Date.now() - latestFix.time > 15000) {
+   waypointButton.title = 'Espera una posición GPS reciente';
+   waypointButton.setAttribute('aria-label', waypointButton.title);
+   $('recordingStatus').textContent = waypointButton.title;
+   revealMapButton();
+   return;
+  }
+  waypointButton.title = 'Añadir parada o punto';
+  waypointButton.setAttribute('aria-label', waypointButton.title);
+  waypoints.push({lat: latestFix.lat, lon: latestFix.lon, time: latestFix.time});
+  drawWaypoints();
+  save();
+  render();
   revealMapButton();
  };
  setting.onchange = () => {
@@ -342,11 +386,14 @@ function initRouteRecording(startGps) {
    clearTimeout(hideTimer);
    mapButton.hidden = true;
   }
+  drawWaypoints();
   render();
  };
  newButton.onclick = () => {
   if (recording || !window.confirm('¿Sustituir la ruta guardada por una nueva? Puedes descargarla antes.')) return;
   points = [];
+  waypoints = [];
+  drawWaypoints();
   save();
   toggle.onclick();
  };
@@ -358,7 +405,8 @@ function initRouteRecording(startGps) {
    if (index && point.split) track += '</trkseg><trkseg>';
    track += '<trkpt lat="' + point.lat + '" lon="' + point.lon + '"><time>' + new Date(point.time).toISOString() + '</time></trkpt>';
   }
-  const xml = '<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Copiloter" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>' + esc(name) + '</name>' + track + '</trkseg></trk></gpx>';
+  const marks = waypoints.map((point, index) => '<wpt lat="' + point.lat + '" lon="' + point.lon + '"><time>' + new Date(point.time).toISOString() + '</time><name>Punto ' + (index + 1) + '</name></wpt>').join('');
+  const xml = '<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Copiloter" xmlns="http://www.topografix.com/GPX/1/1">' + marks + '<trk><name>' + esc(name) + '</name>' + track + '</trkseg></trk></gpx>';
   const url = URL.createObjectURL(new Blob([xml], {type: 'application/gpx+xml;charset=utf-8'}));
   const link = document.createElement('a');
   link.href = url;
@@ -367,10 +415,12 @@ function initRouteRecording(startGps) {
   setTimeout(() => URL.revokeObjectURL(url), 30000);
  };
  document.addEventListener('visibilitychange', () => { if (document.hidden) split = true; });
+ drawWaypoints();
  render();
  return {
   addPosition(fix) {
    if (!recording || document.hidden || fix.time < started || fix.accuracy > 80) return;
+   latestFix = fix;
    const previous = points.at(-1);
    if (previous && fix.time <= previous.time) return;
    const newSegment = split || (previous && fix.time - previous.time > 30000);
