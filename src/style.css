@@ -190,3 +190,6 @@ html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom
  mask-image: linear-gradient(to right, transparent, #000 85%);
  pointer-events: none;
 }
+
+.gps-information{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;margin:0;font-size:14px}
+.gps-information dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}

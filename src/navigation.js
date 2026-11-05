@@ -190,7 +190,7 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{},onPosition=()=>{
   if(last&&data.timestamp<=last.time)return;
   if(!Number.isFinite(data.timestamp)||Date.now()-data.timestamp>30000){status('La posición recibida es antigua. Esperando una señal GPS reciente…','warning');return;}
   if(last&&last.accuracy<=50&&c.accuracy>100){status('Señal GPS poco precisa. Conservando la última posición fiable…','warning');return;}
-  const next={lat:c.latitude,lon:c.longitude,accuracy:c.accuracy,time:data.timestamp,speed:c.speed,heading:c.heading};
+  const next={lat:c.latitude,lon:c.longitude,accuracy:c.accuracy,time:data.timestamp,speed:c.speed,heading:c.heading,altitude:c.altitude};
   if(last&&data.timestamp-last.time<10000&&Number.isFinite(c.speed)&&c.speed<.6&&gpsDistance([last.lon,last.lat],[next.lon,next.lat])<Math.max(4,Math.min(10,c.accuracy*.6))){next.lat=last.lat;next.lon=last.lon;}
   if(last&&data.timestamp-last.time<10000&&gpsDistance([last.lon,last.lat],[next.lon,next.lat])>Math.max(80,(data.timestamp-last.time)/1000*45+last.accuracy+next.accuracy))return;
   last=next;onPosition(next);const ll=[last.lat,last.lon];
