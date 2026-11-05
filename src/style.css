@@ -153,12 +153,17 @@ html[data-zoom-metres="hidden"] .leaflet-control-scale{display:none!important}
 
 .map-app #gpsDetail[data-navigating="true"][data-options-hidden="true"]:not([data-menu-open="true"]) .map-recording { opacity: 0; visibility: hidden; pointer-events: none; }
 
-.saved-recording-row{display:grid;gap:6px;padding:8px;border:1px solid #78948755;border-radius:12px;margin-bottom:8px;background:#244b3b;color:#fff}
+.saved-recording-row{position:relative;display:grid;gap:6px;padding:8px;border:1px solid #78948755;border-radius:12px;margin-bottom:8px;background:#244b3b;color:#fff}
 .saved-recording-row:has(.saved-recording-title[aria-pressed="true"]){background:#cbded2;color:#183c2c;border-color:#8aad98}
 .map-app .saved-recording-title{width:100%;text-align:left;font-weight:650;overflow-wrap:anywhere}
 .saved-recording-actions{display:flex;gap:6px}
 .map-app #savedRecordingList .saved-recording-row button{background:transparent;color:inherit;border-color:currentColor}
-.map-app #savedRecordingList .saved-recording-title{border-color:transparent}
+.map-app #savedRecordingList .saved-recording-title{border:0;box-shadow:none}
+.saved-recording-title::after{content:"";position:absolute;inset:0;border-radius:12px}
+.saved-recording-title:disabled::after{pointer-events:none}
+.saved-recording-title:focus-visible{outline:none}
+.saved-recording-title:focus-visible::after{outline:2px solid currentColor;outline-offset:2px}
+.saved-recording-actions button{position:relative;z-index:1}
 .map-app .saved-recording-actions button{display:grid;place-items:center;min-width:44px;min-height:44px;padding:6px}
 
 .statistics-list{list-style:none;margin:0;padding:0;display:grid;gap:14px}
