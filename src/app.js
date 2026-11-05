@@ -445,7 +445,11 @@ function renderGpsInformation() {
   gpsInfoPosition: fix ? fix.lat.toFixed(5) + ', ' + fix.lon.toFixed(5) : '—',
   gpsInfoTime: fix ? new Date(fix.time).toLocaleTimeString('es-ES') : '—'
  };
- $('gpsInfoWaiting').hidden = Boolean(fix);
+ const waiting = $('gpsInfoWaiting');
+ const message = $('gpsStatus').textContent || 'Esperando una posición del GPS.';
+ if (waiting.textContent !== message) waiting.textContent = message;
+ waiting.hidden = Boolean(fix);
+ $('retryGpsInformation').hidden = Boolean(fix);
  for (const [id, text] of Object.entries(values)) {
   const field = $(id);
   if (field.textContent !== text) field.textContent = text;
@@ -457,6 +461,10 @@ function initGpsInformationVisibility() {
  const key = 'copiloter-show-gps-information';
  try { toggle.checked = localStorage.getItem(key) !== 'false'; } catch {}
  $('openGpsInformation').hidden = !toggle.checked;
+ $('retryGpsInformation').onclick = () => $('retryGps').click();
+ new MutationObserver(() => {
+  if (!$('gpsInformationView').hidden) renderGpsInformation();
+ }).observe($('gpsStatus'), {childList:true,characterData:true,subtree:true});
  toggle.onchange = () => {
   $('openGpsInformation').hidden = !toggle.checked;
   try { localStorage.setItem(key, String(toggle.checked)); } catch {}
@@ -503,7 +511,7 @@ function openMenu(which){const panel=$(which==='lines'?'linePanel':'optionsPanel
 $('selectLine').onclick=()=>openMenu('lines');$('optionsToggle').onclick=()=>openMenu('options');$('closeLines').onclick=()=>closeMenus(true);$('closeOptions').onclick=()=>closeMenus(true);$('openSettings').onclick=()=>showOptionsView('settings');$('openDisplay').onclick=()=>showOptionsView('display');$('optionsBack').onclick=()=>showOptionsView($('optionsPanel').dataset.view==='install'?'info':$('optionsPanel').dataset.view==='display'?'settings':'main');$('openOffline').onclick=()=>showOptionsView('offline');$('openGpx').onclick=()=>showOptionsView('gpx');$('openRecording').onclick=()=>showOptionsView('recording');$('openStatistics').onclick=()=>showOptionsView('statistics');$('openInfo').onclick=()=>showOptionsView('info');$('openGpsInformation').onclick=()=>showOptionsView('gpsInformation');initGpsInformationVisibility();$('openInstall').onclick=()=>showOptionsView('install');
 document.addEventListener('pointerdown',event=>{if(event.target.closest('#map'))closeMenus();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&(!$('linePanel').hidden||!$('optionsPanel').hidden)){event.preventDefault();if($('optionsPanel').dataset.view!=='main')showOptionsView('main');else closeMenus(true);}});
-$('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&!button.closest('#savedRecordingList')&&!['openDisplay','closeOptions','openSettings','openOffline','openGpx','openInfo','openInstall','installAction','retryWake','retryGps','gpsDiagnosticButton','savePersonalMapKeys','openRecording','openStatistics','openGpsInformation','recordingToggle','recordingNew','recordingDownload','optionsBack','download'].includes(button.id))closeMenus(true);});
+$('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&!button.closest('#savedRecordingList')&&!['openDisplay','closeOptions','openSettings','openOffline','openGpx','openInfo','openInstall','installAction','retryWake','retryGps','gpsDiagnosticButton','savePersonalMapKeys','openRecording','openStatistics','openGpsInformation','retryGpsInformation','recordingToggle','recordingNew','recordingDownload','optionsBack','download'].includes(button.id))closeMenus(true);});
 
 function initMapViewport(map){
  const viewport=window.visualViewport,style=document.documentElement.style;let frame=null,lastWidth=0,lastHeight=0;
