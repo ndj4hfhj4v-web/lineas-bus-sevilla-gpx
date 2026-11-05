@@ -239,3 +239,17 @@ html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom
 .recording-controls #recordingStatus:empty,.recording-controls .actions:not(:has(button:not([hidden]))){display:none}
 .recording-gpx{margin-top:12px;padding-top:12px;border-top:1px solid #78948755}
 .recording-gpx summary{cursor:pointer;min-height:44px;padding:10px 0;font-weight:600}
+/* Match the saved-routes panel to the visible route state. */
+.map-app #optionsPanel[data-view="recording"]:has(.saved-recording-title[aria-pressed="true"]){
+ background:#cbded2;
+ color:#183c2c;
+ border-color:#8aad98;
+}
+.map-app #optionsPanel[data-view="recording"]:has(.saved-recording-title[aria-pressed="true"]) .panel-heading{
+ border-color:#8aad98;
+}
+.map-app #optionsPanel[data-view="recording"]:has(.saved-recording-title[aria-pressed="true"]) .panel-heading button{
+ background:transparent;
+ color:#183c2c;
+ border-color:#8aad98;
+}
