@@ -2,7 +2,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const src=fs.readFileSync('src/app.js','utf8'),core=require('../src/core.js');
 const snapshot=JSON.parse(fs.readFileSync('src/snapshot.json','utf8'));
 const loadSource=src.slice(src.indexOf('async function load(refresh=false){'),src.indexOf("$('search').oninput="));
-function elements(){return Object.fromEntries(['refresh','dataStatus','status','all','downloadStatus'].map(id=>[id,{disabled:false,dataset:{},textContent:'',hidden:true}]))}
+function elements(){return Object.fromEntries(['refresh','dataStatus','status','all','downloadStatus','showNextStop'].map(id=>[id,{disabled:false,dataset:{},textContent:'',hidden:true}]))}
 async function checkLoad(mode){const el=elements();let calls=0,saves=0,choices=0,renders=0;
  const stored=['cached','local'].includes(mode)?structuredClone(snapshot):null;
  const savedItems=snapshot.features.filter(f=>Number(f.attributes.Linea)===5);

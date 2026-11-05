@@ -253,7 +253,49 @@ function renderLineStatistics() {
  }
 }
 const lineStatistics=createLineStatistics(()=>localStorage,renderLineStatistics);
-const routeNavigator=createRouteNavigator(map,()=>current,updateStopMarkerSizes,fix=>{recorder.addPosition(fix);if(!document.hidden)lineStatistics.addPosition(current,fix);});
+
+function initNextStop() {
+ const toggle = $('showNextStop'), panel = $('nextStop');
+ const name = $('nextStopName'), distance = $('nextStopDistance');
+ const preference = 'copiloter-show-next-stop';
+ let route = null, track = null, result = null, expiry;
+ try { toggle.checked = localStorage.getItem(preference) !== 'false'; } catch {}
+
+ function render() {
+  panel.hidden = !toggle.checked || !result;
+  if (panel.hidden) return;
+  const metres = result.metres < 20 ? Math.round(result.metres) : Math.round(result.metres / 10) * 10;
+  const text = metres >= 1000 ? (metres / 1000).toLocaleString('es-ES', {maximumFractionDigits:1}) + ' km' : metres + ' m';
+  if (name.textContent !== result.name) name.textContent = result.name;
+  if (distance.textContent !== text) distance.textContent = text;
+ }
+
+ toggle.onchange = () => {
+  try { localStorage.setItem(preference, String(toggle.checked)); } catch {}
+  render();
+ };
+
+ return {
+  reset() {
+   clearTimeout(expiry);
+   route = track = result = null;
+   render();
+  },
+  update(currentRoute, fix) {
+   if (route !== currentRoute) {
+    route = currentRoute;
+    track = route?.stops?.length ? createNextStopTracker(route) : null;
+   }
+   result = track?.(fix) ?? null;
+   clearTimeout(expiry);
+   if (result) expiry = setTimeout(() => { result = null; render(); }, 30000);
+   render();
+  }
+ };
+}
+
+const nextStop = initNextStop();
+const routeNavigator=createRouteNavigator(map,()=>current,active=>{updateStopMarkerSizes();if(!active)nextStop.reset();},fix=>{nextStop.update(current,fix);recorder.addPosition(fix);if(!document.hidden)lineStatistics.addPosition(current,fix);});
 $('search').oninput=renderList;$('variant').onchange=()=>{if(routeNavigator.isActive())routeNavigator.exit();show();routeNavigator.start();};$('refresh').onclick=()=>load(true);$('download').onclick=downloadLineGpx;startOfflineApp();
 
 function offlineNetworkFingerprint(data){let hash=2166136261;const value=JSON.stringify(data.features);for(let i=0;i<value.length;i++){hash^=value.charCodeAt(i);hash=Math.imul(hash,16777619);}return (hash>>>0).toString(16)+':'+value.length;}

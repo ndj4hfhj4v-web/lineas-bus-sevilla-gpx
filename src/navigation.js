@@ -1,6 +1,60 @@
 function gpsDistance(a,b){const r=Math.PI/180,h=Math.sin((b[1]-a[1])*r/2)**2+Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.sin((b[0]-a[0])*r/2)**2;return 12742000*Math.asin(Math.sqrt(Math.min(1,h)));}
 function gpsRouteDistance(point,paths){let best=Infinity;const scale=Math.cos(point[1]*Math.PI/180),m=111195;
  for(const path of paths)for(let i=1;i<path.length;i++){const a=[(path[i-1][0]-point[0])*scale*m,(path[i-1][1]-point[1])*m],b=[(path[i][0]-point[0])*scale*m,(path[i][1]-point[1])*m],dx=b[0]-a[0],dy=b[1]-a[1],den=dx*dx+dy*dy,t=den?Math.max(0,Math.min(1,-(a[0]*dx+a[1]*dy)/den)):0;best=Math.min(best,Math.hypot(a[0]+t*dx,a[1]+t*dy));}return best;}
+
+function createNextStopTracker(route) {
+ const segments = [];
+ let length = 0;
+ const longitudeScale = Math.cos(route.geometry.paths[0][0][1] * Math.PI / 180);
+ for (const path of route.geometry.paths) {
+  for (let i = 1; i < path.length; i++) {
+   const from = path[i - 1], to = path[i];
+   const metres = gpsDistance(from, to);
+   if (!metres) continue;
+   segments.push({from, dx:(to[0] - from[0]) * longitudeScale, dy:to[1] - from[1], metres, start:length});
+   length += metres;
+  }
+ }
+
+ function project(lon, lat, min, max) {
+  let best = null;
+  for (const segment of segments) {
+   const {from, dx, dy, metres, start} = segment;
+   if (start + metres < min || start > max) continue;
+   const x = (lon - from[0]) * longitudeScale, y = lat - from[1];
+   const fraction = (x * dx + y * dy) / (dx * dx + dy * dy);
+   const t = Math.max(0, (min - start) / metres, Math.min(1, (max - start) / metres, fraction));
+   const offset = Math.hypot(x - t * dx, y - t * dy) * 111195;
+   if (!best || offset < best.offset) best = {along:start + t * metres, offset};
+  }
+  return best;
+ }
+
+ let stopAlong = 0;
+ const stops = (route.stops || []).map(stop => {
+  stopAlong = project(stop.geometry.x, stop.geometry.y, stopAlong, length)?.along ?? stopAlong;
+  return {name:stop.attributes.Nombre, along:stopAlong};
+ });
+ let next = 0, progress = null, lastMatch = null;
+ return fix => {
+  if (fix.accuracy > 60 || next === stops.length) return null;
+  const elapsed = lastMatch === null ? Infinity : Math.max(0, (fix.time - lastMatch) / 1000);
+  const match = project(fix.lon, fix.lat, progress === null ? 0 : Math.max(0, progress - 30),
+   progress === null ? length : Math.min(length, progress + Math.max(90, elapsed * 35)));
+  if (!match || match.offset > 60) return null;
+  progress = Math.max(progress ?? 0, match.along);
+  lastMatch = fix.time;
+
+  while (next < stops.length - 1 && progress > stops[next].along + 12) next++;
+  const stop = stops[next];
+  if (next === stops.length - 1 && match.offset <= 25 && Math.abs(stop.along - progress) <= 20) {
+   next++;
+   return null;
+  }
+  return {name:stop.name, metres:Math.max(0, stop.along - progress)};
+ };
+}
+
 function gpsNearestStop(point,stops){let nearest=null;for(let i=0;i<stops.length;i++){const s=stops[i],distance=gpsDistance(point,[s.geometry.x,s.geometry.y]);if(!nearest||distance<nearest.distance)nearest={stop:s,index:i,distance};}return nearest;}
 function gpsBearing(a,b){const r=Math.PI/180,p=a[1]*r,q=b[1]*r,d=(b[0]-a[0])*r;return (Math.atan2(Math.sin(d)*Math.cos(q),Math.cos(p)*Math.sin(q)-Math.sin(p)*Math.cos(q)*Math.cos(d))/r+360)%360;}
 function gpsMotionCourse(anchor,fix){
@@ -169,4 +223,4 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{},onPosition=()=>{
  window.addEventListener('pageshow',()=>{if(resumeNavigation){resumeNavigation=false;start();}else if(active)keepAwake();});
  return {start,isActive:()=>active,exit:collapse,revealControls:revealOptions,routeChanged(){const route=getRoute();if(active&&route!==routeKey)stop('Has cambiado de recorrido.');if(el('startGps'))el('startGps').disabled=!route;},stop};
 }
-if(typeof module!=='undefined')module.exports={gpsDistance,gpsRouteDistance,gpsNearestStop,gpsBearing,gpsMotionCourse,gpsLookAheadCenter,createGpsCamera,createScreenWakeLock,createRouteNavigator,runGpsDiagnostic,gpsDiagnosticText};
+if(typeof module!=='undefined')module.exports={gpsDistance,gpsRouteDistance,createNextStopTracker,gpsNearestStop,gpsBearing,gpsMotionCourse,gpsLookAheadCenter,createGpsCamera,createScreenWakeLock,createRouteNavigator,runGpsDiagnostic,gpsDiagnosticText};
