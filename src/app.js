@@ -500,6 +500,9 @@ let latestGpsFix = null;
 
 function renderGpsInformation() {
  const fix = latestGpsFix;
+ const panel = $('gpsInformationView');
+ panel.hidden = !$('showGpsInformation').checked || !fix;
+ if (panel.hidden) return;
  const values = {
   gpsInfoAltitude: Number.isFinite(fix?.altitude) ? Math.round(fix.altitude) + ' m' : '—',
   gpsInfoSpeed: Number.isFinite(fix?.speed) ? Math.round(fix.speed * 3.6) + ' km/h' : '—',
@@ -508,11 +511,6 @@ function renderGpsInformation() {
   gpsInfoPosition: fix ? fix.lat.toFixed(5) + ', ' + fix.lon.toFixed(5) : '—',
   gpsInfoTime: fix ? new Date(fix.time).toLocaleTimeString('es-ES') : '—'
  };
- const waiting = $('gpsInfoWaiting');
- const message = $('gpsStatus').textContent || 'Esperando una posición del GPS.';
- if (waiting.textContent !== message) waiting.textContent = message;
- waiting.hidden = Boolean(fix);
- $('retryGpsInformation').hidden = Boolean(fix);
  for (const [id, text] of Object.entries(values)) {
   const field = $(id);
   if (field.textContent !== text) field.textContent = text;
@@ -523,19 +521,14 @@ function initGpsInformationVisibility() {
  const toggle = $('showGpsInformation');
  const key = 'copiloter-show-gps-information';
  try { toggle.checked = localStorage.getItem(key) !== 'false'; } catch {}
- $('openGpsInformation').hidden = !toggle.checked;
- $('retryGpsInformation').onclick = () => $('retryGps').click();
- new MutationObserver(() => {
-  if (!$('gpsInformationView').hidden) renderGpsInformation();
- }).observe($('gpsStatus'), {childList:true,characterData:true,subtree:true});
  toggle.onchange = () => {
-  $('openGpsInformation').hidden = !toggle.checked;
+  renderGpsInformation();
   try { localStorage.setItem(key, String(toggle.checked)); } catch {}
  };
 }
 
 const nextStop = initNextStop();
-const routeNavigator=createRouteNavigator(map,()=>current,active=>{updateStopMarkerSizes();if(!active){nextStop.reset();latestGpsFix=null;if(!$("gpsInformationView").hidden)renderGpsInformation();}},fix=>{latestGpsFix=fix;if(!$("gpsInformationView").hidden)renderGpsInformation();nextStop.update(selected ? current : null,fix);recorder.addPosition(fix);if(!document.hidden)lineStatistics.addPosition(selected ? current : null,fix);},()=>current!=null&&getFavouriteZoom?.()!=null);
+const routeNavigator=createRouteNavigator(map,()=>current,active=>{updateStopMarkerSizes();if(!active){nextStop.reset();latestGpsFix=null;renderGpsInformation();}},fix=>{latestGpsFix=fix;renderGpsInformation();nextStop.update(selected ? current : null,fix);recorder.addPosition(fix);if(!document.hidden)lineStatistics.addPosition(selected ? current : null,fix);},()=>current!=null&&getFavouriteZoom?.()!=null);
 $('search').oninput=renderList;$('variant').onchange=()=>{if(routeNavigator.isActive())routeNavigator.exit();show();routeNavigator.start();};$('refresh').onclick=()=>load(true);$('download').onclick=downloadLineGpx;startOfflineApp();
 
 function offlineNetworkFingerprint(data){let hash=2166136261;const value=JSON.stringify(data.features);for(let i=0;i<value.length;i++){hash^=value.charCodeAt(i);hash=Math.imul(hash,16777619);}return (hash>>>0).toString(16)+':'+value.length;}
@@ -568,13 +561,13 @@ async function startOfflineApp(){
  await load();updateOfflineStatus();BusOffline.init().then(ready=>{if(ready&&background)background.redraw();automaticNetwork?.setShellReady(ready);});if(navigator.onLine!==false)load(true);
 }
 
-function showOptionsView(view='main',focus=true){const previous=$('optionsPanel').dataset.view;$('gpsInformationView').hidden=view!=='gpsInformation';$('openGpsInformation').setAttribute('aria-expanded',String(view==='gpsInformation'));if(view==='gpsInformation')renderGpsInformation();$('statisticsView').hidden=view!=='statistics';$('openStatistics').setAttribute('aria-expanded',String(view==='statistics'));if(view==='statistics')renderLineStatistics();$('recordingView').hidden=view!=='recording';$('openRecording').setAttribute('aria-expanded',String(view==='recording'));$('optionsMain').hidden=view!=='main';$('settingsView').hidden=view!=='settings';$('displayView').hidden=view!=='display';$('openDisplay').setAttribute('aria-expanded',String(view==='display'));$('offlineView').hidden=view!=='offline';$('gpxView').hidden=view!=='gpx';$('infoView').hidden=view!=='info';$('installView').hidden=view!=='install';$('optionsBack').hidden=view==='main';$('optionsBack').setAttribute('aria-label',view==='install'?'Volver a Información':view==='display'?'Volver a Ajustes':'Volver a opciones');const title={main:'Opciones',statistics:'Estadísticas',gpsInformation:'Datos GPS',recording:'Rutas guardadas',settings:'Ajustes',display:'Pantalla',offline:'Paradas del recorrido',gpx:'Archivos GPX',info:'Información',install:'Instalar aplicación'}[view];$('optionsTitle').textContent=title;$('optionsPanel').setAttribute('aria-label',title);$('optionsPanel').dataset.view=view;$('openSettings').setAttribute('aria-expanded',String(view==='settings'));$('openOffline').setAttribute('aria-expanded',String(view==='offline'));$('openGpx').setAttribute('aria-expanded',String(view==='gpx'));$('openInfo').setAttribute('aria-expanded',String(view==='info'));$('openInstall').setAttribute('aria-expanded',String(view==='install'));if(focus)$(view!=='main'?'optionsBack':previous==='offline'?'openOffline':previous==='gpx'?'openGpx':previous==='info'?'openInfo':previous==='recording'?'openRecording':previous==='statistics'?'openStatistics':previous==='gpsInformation'?'openGpsInformation':previous==='install'?'openInstall':'openSettings').focus({preventScroll:true});}
+function showOptionsView(view='main',focus=true){const previous=$('optionsPanel').dataset.view;$('statisticsView').hidden=view!=='statistics';$('openStatistics').setAttribute('aria-expanded',String(view==='statistics'));if(view==='statistics')renderLineStatistics();$('recordingView').hidden=view!=='recording';$('openRecording').setAttribute('aria-expanded',String(view==='recording'));$('optionsMain').hidden=view!=='main';$('settingsView').hidden=view!=='settings';$('displayView').hidden=view!=='display';$('openDisplay').setAttribute('aria-expanded',String(view==='display'));$('offlineView').hidden=view!=='offline';$('gpxView').hidden=view!=='gpx';$('infoView').hidden=view!=='info';$('installView').hidden=view!=='install';$('optionsBack').hidden=view==='main';$('optionsBack').setAttribute('aria-label',view==='install'?'Volver a Información':view==='display'?'Volver a Ajustes':'Volver a opciones');const title={main:'Opciones',statistics:'Estadísticas',recording:'Rutas guardadas',settings:'Ajustes',display:'Pantalla',offline:'Paradas del recorrido',gpx:'Archivos GPX',info:'Información',install:'Instalar aplicación'}[view];$('optionsTitle').textContent=title;$('optionsPanel').setAttribute('aria-label',title);$('optionsPanel').dataset.view=view;$('openSettings').setAttribute('aria-expanded',String(view==='settings'));$('openOffline').setAttribute('aria-expanded',String(view==='offline'));$('openGpx').setAttribute('aria-expanded',String(view==='gpx'));$('openInfo').setAttribute('aria-expanded',String(view==='info'));$('openInstall').setAttribute('aria-expanded',String(view==='install'));if(focus)$(view!=='main'?'optionsBack':previous==='offline'?'openOffline':previous==='gpx'?'openGpx':previous==='info'?'openInfo':previous==='recording'?'openRecording':previous==='statistics'?'openStatistics':previous==='install'?'openInstall':'openSettings').focus({preventScroll:true});}
 function closeMenus(restoreFocus=false){showOptionsView('main',false);const activePanel=!$('linePanel').hidden?'lines':!$('optionsPanel').hidden?'options':null;$('linePanel').hidden=true;$('optionsPanel').hidden=true;$('selectLine').setAttribute('aria-expanded','false');$('optionsToggle').setAttribute('aria-expanded','false');$('gpsDetail').dataset.menuOpen='false';routeNavigator.revealControls();if(restoreFocus&&activePanel)$(activePanel==='lines'?'selectLine':'optionsToggle').focus({preventScroll:true});}
 function openMenu(which){const panel=$(which==='lines'?'linePanel':'optionsPanel'),wasOpen=!panel.hidden;closeMenus();if(wasOpen)return;panel.hidden=false;$(which==='lines'?'selectLine':'optionsToggle').setAttribute('aria-expanded','true');$('gpsDetail').dataset.menuOpen='true';routeNavigator.revealControls();$(which==='lines'?'closeLines':'closeOptions').focus({preventScroll:true});}
-$('selectLine').onclick=()=>openMenu('lines');$('optionsToggle').onclick=()=>openMenu('options');$('closeLines').onclick=()=>closeMenus(true);$('closeOptions').onclick=()=>closeMenus(true);$('openSettings').onclick=()=>showOptionsView('settings');$('openDisplay').onclick=()=>showOptionsView('display');$('optionsBack').onclick=()=>showOptionsView($('optionsPanel').dataset.view==='install'?'info':$('optionsPanel').dataset.view==='display'?'settings':'main');$('openOffline').onclick=()=>showOptionsView('offline');$('openGpx').onclick=()=>showOptionsView('gpx');$('openRecording').onclick=()=>showOptionsView('recording');$('openStatistics').onclick=()=>showOptionsView('statistics');$('openInfo').onclick=()=>showOptionsView('info');$('openGpsInformation').onclick=()=>showOptionsView('gpsInformation');initGpsInformationVisibility();initGpxImport();$('openInstall').onclick=()=>showOptionsView('install');
+$('selectLine').onclick=()=>openMenu('lines');$('optionsToggle').onclick=()=>openMenu('options');$('closeLines').onclick=()=>closeMenus(true);$('closeOptions').onclick=()=>closeMenus(true);$('openSettings').onclick=()=>showOptionsView('settings');$('openDisplay').onclick=()=>showOptionsView('display');$('optionsBack').onclick=()=>showOptionsView($('optionsPanel').dataset.view==='install'?'info':$('optionsPanel').dataset.view==='display'?'settings':'main');$('openOffline').onclick=()=>showOptionsView('offline');$('openGpx').onclick=()=>showOptionsView('gpx');$('openRecording').onclick=()=>showOptionsView('recording');$('openStatistics').onclick=()=>showOptionsView('statistics');$('openInfo').onclick=()=>showOptionsView('info');initGpsInformationVisibility();initGpxImport();$('openInstall').onclick=()=>showOptionsView('install');
 document.addEventListener('pointerdown',event=>{if(event.target.closest('#map'))closeMenus();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&(!$('linePanel').hidden||!$('optionsPanel').hidden)){event.preventDefault();if($('optionsPanel').dataset.view!=='main')showOptionsView('main');else closeMenus(true);}});
-$('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&!button.closest('#savedRecordingList')&&!['openDisplay','closeOptions','openSettings','openOffline','openGpx','openInfo','openInstall','installAction','retryWake','retryGps','gpsDiagnosticButton','savePersonalMapKeys','openRecording','openStatistics','openGpsInformation','retryGpsInformation','recordingToggle','recordingNew','recordingDownload','optionsBack','importGpx','download'].includes(button.id))closeMenus(true);});
+$('optionsPanel').addEventListener('click',event=>{const button=event.target.closest('button');if(button&&!button.closest('#savedRecordingList')&&!['openDisplay','closeOptions','openSettings','openOffline','openGpx','openInfo','openInstall','installAction','retryWake','retryGps','gpsDiagnosticButton','savePersonalMapKeys','openRecording','openStatistics','recordingToggle','recordingNew','recordingDownload','optionsBack','importGpx','download'].includes(button.id))closeMenus(true);});
 
 function initMapViewport(map){
  const viewport=window.visualViewport,style=document.documentElement.style;let frame=null,lastWidth=0,lastHeight=0;
