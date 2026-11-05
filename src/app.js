@@ -792,7 +792,16 @@ function initRouteRecording(startGps) {
     renderLibrary();
     render();
    };
-   row.append(title, open, rename, exportButton, deleteButton);
+   const more = document.createElement('details');
+   more.className = 'saved-recording-actions';
+   const summary = document.createElement('summary');
+   summary.textContent = 'Más';
+   summary.setAttribute('aria-label', 'Más acciones para ' + route.name);
+   const actions = document.createElement('div');
+   actions.className = 'actions';
+   actions.append(rename, exportButton, deleteButton);
+   more.append(summary, actions);
+   row.append(title, open, more);
    list.append(row);
   }
  }

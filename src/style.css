@@ -231,5 +231,9 @@ html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom
 }
 .gps-information .gps-position {grid-column:1/-1}
 
-#importGpx{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-#importGpx img{flex:none;object-fit:contain}
+.recording-controls{margin-top:12px}
+.recording-controls #recordingStatus:empty,.recording-controls .actions:not(:has(button:not([hidden]))){display:none}
+.recording-gpx{margin-top:12px;padding-top:12px;border-top:1px solid #78948755}
+.recording-gpx summary,.saved-recording-actions summary{cursor:pointer;min-height:44px;padding:10px 0;font-weight:600}
+.saved-recording-actions{flex:1}
+.saved-recording-actions[open]{flex-basis:100%}
