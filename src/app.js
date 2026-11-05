@@ -199,7 +199,7 @@ function createLineStatistics(storage, onChange) {
 
  return {
   entries() {
-   return [...counts].sort(([a, x], [b, y]) => y.count - x.count || a.localeCompare(b, 'es', {numeric:true}));
+   return [...counts].sort(([a, x], [b, y]) => y.count - x.count || (x.line || a).localeCompare(y.line || b, 'es', {numeric:true}) || (x.sense || '').localeCompare(y.sense || '', 'es'));
   },
   addPosition(feature, fix) {
    if (route !== feature) {
@@ -219,7 +219,10 @@ function createLineStatistics(storage, onChange) {
    for (const [line, entry] of stored) {
     if (entry.count > (counts.get(line)?.count || 0)) counts.set(line, entry);
    }
-   counts.set(id, {name: feature.attributes.NombreLinea || id, count: (counts.get(id)?.count || 0) + 1});
+   const sense = feature.attributes.NombreRuta || feature.attributes.DestinoRuta || 'Sentido ' + feature.attributes.Ruta;
+   const directionKey = JSON.stringify([id, sense]);
+   counts.set(directionKey, {line: id, sense, name: feature.attributes.NombreLinea || id,
+    count: (counts.get(directionKey)?.count || 0) + 1});
    try { storage().setItem(key, JSON.stringify([...counts])); } catch {}
    onChange();
   }
@@ -235,10 +238,10 @@ function renderLineStatistics() {
  for (const [id, entry] of entries) {
   const row = document.createElement('li');
   const name = document.createElement('span');
-  name.textContent = 'Línea ' + id + ' · ' + entry.name;
+  name.textContent = 'Línea ' + (entry.line || id) + ' · ' + (entry.sense || entry.name + ' (sentido sin registrar)');
   const count = document.createElement('strong');
   count.textContent = String(entry.count);
-  count.setAttribute('aria-label', entry.count + (entry.count === 1 ? ' recorrido' : ' recorridos'));
+  count.setAttribute('aria-label', entry.count + (entry.count === 1 ? ' semivuelta' : ' semivueltas'));
   const bar = document.createElement('div');
   bar.className = 'statistics-bar';
   bar.setAttribute('aria-hidden', 'true');
