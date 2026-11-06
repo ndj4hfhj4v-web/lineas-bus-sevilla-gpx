@@ -18,6 +18,8 @@ function initPersonalMapKeys() {
  const google = $('personalGoogleKey');
  const status = $('personalMapKeysStatus');
  const saved = readPersonalMapKeys(() => localStorage);
+ if (!saved.mapbox && !saved.google) return;
+ $('personalMapKeysDetails').hidden = false;
  mapbox.value = saved.mapbox || '';
  google.value = saved.google || '';
  form.onsubmit = event => {
