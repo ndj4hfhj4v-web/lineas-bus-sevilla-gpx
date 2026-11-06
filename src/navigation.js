@@ -221,6 +221,19 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{},onPosition=()=>{
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(active){recoverGps();if(!last||Date.now()-last.time>30000){status('Retomando el GPS. Esperando una posición reciente…','warning');requestApproximate(generation);}keepAwake();}}else{releaseWake();}});
  window.addEventListener('pagehide',()=>{const wasActive=active;if(active)stop('');resumeNavigation=wasActive;});
  window.addEventListener('pageshow',()=>{if(resumeNavigation){resumeNavigation=false;start();}else if(active)keepAwake();});
- return {start,isActive:()=>active,exit:collapse,revealControls:revealOptions,routeChanged(){const route=getRoute();if(active&&route!==routeKey)stop('Has cambiado de recorrido.');if(el('startGps'))el('startGps').disabled=!route;},stop};
+ return {start,isActive:()=>active,exit:collapse,revealControls:revealOptions,routeChanged(preserveView=false) {
+  const route=getRoute();
+  if (active&&route!==routeKey) {
+   if (preserveView) {
+    routeKey=route;
+    camera.cancel();
+    following=false;
+    controls();
+   } else {
+    stop('Has cambiado de recorrido.');
+   }
+  }
+  if (el('startGps')) el('startGps').disabled=!route;
+ },stop};
 }
 if(typeof module!=='undefined')module.exports={gpsDistance,gpsRouteDistance,createNextStopTracker,gpsNearestStop,gpsBearing,gpsMotionCourse,gpsLookAheadCenter,createGpsCamera,createScreenWakeLock,createRouteNavigator,runGpsDiagnostic,gpsDiagnosticText};
