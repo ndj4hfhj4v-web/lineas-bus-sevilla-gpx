@@ -496,7 +496,8 @@ function renderLineStatistics() {
   counts.set(line, (counts.get(line) || 0) + entry.count);
  }
  const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
- chart.hidden = !total;
+ chart.hidden = false;
+ if (!total) chart.style.setProperty('--statistics-slices', 'color-mix(in srgb, currentColor 22%, transparent)');
  $('statisticsTotal').textContent = String(total);
  if (total) {
   let offset = 0;
