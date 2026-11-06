@@ -93,8 +93,9 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
  }
  if (!available[preferred]) preferred = 'ign';
  let googleMap, googleHost, googlePending, googleReady = false, googleFailed = false, googleTimer;
- const canUsePremium = () => env.canUsePremium?.() ?? true;
- const wantsGoogle = () => canUsePremium() && preferred === 'google' && env.navigator.onLine !== false;
+ const personal = {mapbox:typeof keys.mapbox === 'string' && keys.mapbox.startsWith('pk.'),google:typeof keys.google === 'string' && !!keys.google};
+ const canUsePremium = provider => personal[provider] || (env.canUsePremium?.() ?? true);
+ const wantsGoogle = () => canUsePremium('google') && preferred === 'google' && env.navigator.onLine !== false;
  function syncGoogle() {
   if (!googleMap || !wantsGoogle() || googleFailed) return;
   const camera = mapboxCamera(map);
@@ -161,7 +162,7 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
  function setStatus(text){status.textContent=text;status.hidden=!text;}
  function type(){return root.dataset.mapType||'street';}
  function dark(){return root.dataset.theme==='night';}
- function wantsMapbox(){return canUsePremium()&&preferred==='mapbox'&&env.navigator.onLine!==false;}
+ function wantsMapbox(){return canUsePremium('mapbox')&&preferred==='mapbox'&&env.navigator.onLine!==false;}
  function clearLoadTimer(){if(loadTimer!==null)win.clearTimeout(loadTimer);loadTimer=null;}
  function showIgn(message=''){if(!map.hasLayer(ign))ign.addTo(map);if(host)host.style.visibility='hidden';if(googleHost)googleHost.style.visibility='hidden';if(credited){map.attributionControl?.removeAttribution(attribution);credited=false;}root.dataset.mapProvider='ign';setStatus(message);}
  function sync(){frame=null;if(wantsGoogle()){syncGoogle();return;}if(disposed||!renderer||!wantsMapbox())return;try{renderer.jumpTo(mapboxCamera(map));}catch{showIgn('Mapbox no está disponible. Mostrando IGN.');}}
@@ -169,8 +170,8 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
  function showMapbox(){if(disposed||!ready||aerialFailed||!wantsMapbox())return;clearLoadTimer();renderer.resize();sync();if(map.hasLayer(ign))map.removeLayer(ign);host.style.visibility='visible';if(!credited){map.attributionControl?.addAttribution(attribution);credited=true;}root.dataset.mapProvider='mapbox';setStatus('');}
  function style(){if(!renderer)return;const next=type()+'|'+(type()==='street'&&dark());if(next===styleKey)return;styleKey=next;ready=false;failed=false;aerialFailed=false;showIgn('Cargando Mapbox…');renderer.setStyle(mapboxStyle(type(),dark()),{diff:false});}
  async function apply(){
-  const premiumAllowed = canUsePremium();
-  for (const option of select.options || []) option.disabled = !available[option.value] || (!premiumAllowed && option.value !== 'ign');
+  const premiumAllowed = preferred === 'ign' || canUsePremium(preferred);
+  for (const option of select.options || []) option.disabled = !available[option.value] || (option.value !== 'ign' && !canUsePremium(option.value));
   select.value=premiumAllowed?preferred:'ign';if(!map||!ign){select.disabled=true;return;}
   if (!premiumAllowed) {
    generation++;
