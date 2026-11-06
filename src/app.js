@@ -491,8 +491,8 @@ function renderLineStatistics() {
  let total = 0;
  for (const [id, entry] of lineStatistics.entries()) {
   const line = entry.line || id;
-  if (!rows.has(line)) rows.set(line, {id: line, name: entry.name, total: 0, senses: new Map()});
   const row = rows.get(line);
+  if (!row) continue;
   const sense = entry.sense || 'Sentido sin registrar';
   row.senses.set(sense, (row.senses.get(sense) || 0) + entry.count);
   row.total += entry.count;
