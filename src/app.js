@@ -92,9 +92,6 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
 
  const googleKey = env.googleKey ?? keys.google ?? '';
  const available = {ign:true,mapbox:accessToken.startsWith('pk.'),google:!!googleKey};
- for (const option of select.options || []) {
-  option.hidden = option.disabled = !available[option.value];
- }
  if (!available[preferred]) preferred = 'ign';
  let googleMap, googleHost, googlePending, googleReady = false, googleFailed = false, googleTimer;
  const personal = {mapbox:personalMapbox,google:typeof keys.google === 'string' && !!keys.google};
