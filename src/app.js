@@ -74,7 +74,12 @@ function loadGoogleMapsSdk(key, doc, win, onAuthFailure) {
  return googleMapsSdkPromise;
 }
 
-function initMapProvider(map,ign,env={window,document,navigator,storage:()=>localStorage,loadSdk:()=>loadMapboxSdk()}){
+let mapProviderController, recordingUsesIgn = false, savedRoutesUseIgn = false;
+function refreshMapProvider() {
+ mapProviderController?.refresh();
+}
+
+function initMapProvider(map,ign,env={window,document,navigator,storage:()=>localStorage,loadSdk:()=>loadMapboxSdk(),canUsePremium:()=>Boolean(selected)&&groups.some(group=>group.id===selected)&&!recordingUsesIgn&&!savedRoutesUseIgn}){
  const keys = readPersonalMapKeys(env.storage);
  const accessToken=env.accessToken??keys.mapbox??'',win=env.window,doc=env.document,root=doc.documentElement,select=doc.getElementById('mapProvider'),status=doc.getElementById('mapProviderStatus'),key='bus-copilot-map-provider';let preferred='ign',renderer=null,host=null,pending=null,ready=false,disposed=false,generation=0,frame=null,styleKey='',credited=false,loadTimer=null,failed=false,aerialFailed=false;
  const aerialFallback='No se han podido cargar las imágenes de Mapbox. Se muestra la vista aérea del IGN.';
@@ -88,7 +93,8 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
  }
  if (!available[preferred]) preferred = 'ign';
  let googleMap, googleHost, googlePending, googleReady = false, googleFailed = false, googleTimer;
- const wantsGoogle = () => preferred === 'google' && env.navigator.onLine !== false;
+ const canUsePremium = () => env.canUsePremium?.() ?? true;
+ const wantsGoogle = () => canUsePremium() && preferred === 'google' && env.navigator.onLine !== false;
  function syncGoogle() {
   if (!googleMap || !wantsGoogle() || googleFailed) return;
   const camera = mapboxCamera(map);
@@ -155,7 +161,7 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
  function setStatus(text){status.textContent=text;status.hidden=!text;}
  function type(){return root.dataset.mapType||'street';}
  function dark(){return root.dataset.theme==='night';}
- function wantsMapbox(){return preferred==='mapbox'&&env.navigator.onLine!==false;}
+ function wantsMapbox(){return canUsePremium()&&preferred==='mapbox'&&env.navigator.onLine!==false;}
  function clearLoadTimer(){if(loadTimer!==null)win.clearTimeout(loadTimer);loadTimer=null;}
  function showIgn(message=''){if(!map.hasLayer(ign))ign.addTo(map);if(host)host.style.visibility='hidden';if(googleHost)googleHost.style.visibility='hidden';if(credited){map.attributionControl?.removeAttribution(attribution);credited=false;}root.dataset.mapProvider='ign';setStatus(message);}
  function sync(){frame=null;if(wantsGoogle()){syncGoogle();return;}if(disposed||!renderer||!wantsMapbox())return;try{renderer.jumpTo(mapboxCamera(map));}catch{showIgn('Mapbox no está disponible. Mostrando IGN.');}}
@@ -163,7 +169,14 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
  function showMapbox(){if(disposed||!ready||aerialFailed||!wantsMapbox())return;clearLoadTimer();renderer.resize();sync();if(map.hasLayer(ign))map.removeLayer(ign);host.style.visibility='visible';if(!credited){map.attributionControl?.addAttribution(attribution);credited=true;}root.dataset.mapProvider='mapbox';setStatus('');}
  function style(){if(!renderer)return;const next=type()+'|'+(type()==='street'&&dark());if(next===styleKey)return;styleKey=next;ready=false;failed=false;aerialFailed=false;showIgn('Cargando Mapbox…');renderer.setStyle(mapboxStyle(type(),dark()),{diff:false});}
  async function apply(){
-  select.value=preferred;if(!map||!ign){select.disabled=true;return;}
+  const premiumAllowed = canUsePremium();
+  for (const option of select.options || []) option.disabled = !available[option.value] || (!premiumAllowed && option.value !== 'ign');
+  select.value=premiumAllowed?preferred:'ign';if(!map||!ign){select.disabled=true;return;}
+  if (!premiumAllowed) {
+   generation++;
+   showIgn('Mapbox y Google Maps solo están disponibles con una línea de Sevilla seleccionada y sin rutas personales activas.');
+   return;
+  }
   if(wantsGoogle()){generation++;if(root.dataset.mapProvider!=='google')showIgn('Cargando Google Maps…');await applyGoogle();return;}
   if(!wantsMapbox()){generation++;showIgn(preferred!=='ign'?'Sin conexión: se utiliza el mapa de IGN guardado en este dispositivo.':'');return;}
   if(root.dataset.mapProvider==='google')showIgn('Cargando Mapbox…');
@@ -268,7 +281,7 @@ function selectableRoutes(group){
  return [...destinations.values()];
 }
 async function useSavedMapForLine(id){if(navigator.onLine!==false||$('mapType').disabled)return;try{const packs=await BusOffline.savedMapPacks(id);if(selected!==id||!packs.length||packs.some(p=>p.type===readMapType()))return;$('mapType').value=packs[0].type;$('mapType').dispatchEvent(new Event('change'));}catch{}}
-function choose(id,navigate=false){if(routeNavigator.isActive())routeNavigator.exit();selected=id;const g=groups.find(g=>g.id===id);$('name').textContent=g.name;setLineIcon($('badge'),g);setBadgeColor(g.items[0].attributes.Color);$('variant').replaceChildren();selectableRoutes(g).forEach((f,i)=>{const o=document.createElement('option');o.value=i;o.textContent=f.attributes.NombreRuta||f.attributes.DestinoRuta;$('variant').append(o)});$('variant').disabled=false;$('badge').hidden=false;$('senseBar').hidden=false;renderList();show();closeMenus(true);if(navigate)routeNavigator.start();}
+function choose(id,navigate=false){if(routeNavigator.isActive())routeNavigator.exit();selected=id;const g=groups.find(g=>g.id===id);$('name').textContent=g.name;setLineIcon($('badge'),g);setBadgeColor(g.items[0].attributes.Color);$('variant').replaceChildren();selectableRoutes(g).forEach((f,i)=>{const o=document.createElement('option');o.value=i;o.textContent=f.attributes.NombreRuta||f.attributes.DestinoRuta;$('variant').append(o)});$('variant').disabled=false;$('badge').hidden=false;$('senseBar').hidden=false;renderList();show();refreshMapProvider();closeMenus(true);if(navigate)routeNavigator.start();}
 function show(importedRoute=null){clearGpxDownloads();const g=groups.find(g=>g.id===selected);current=importedRoute||selectableRoutes(g)[Number($('variant').value)];if(map){if(routeLayer)map.removeLayer(routeLayer);stopMarkers=[];stopMarkerRadius=null;routeLayer=L.featureGroup().addTo(map);for(const path of current.geometry.paths){const pts=path.map(c=>[c[1],c[0]]);L.polyline(pts,{color:'#315e46',weight:5,opacity:.9}).addTo(routeLayer);}const stopStyle={radius:5,color:'#244b3b',weight:2,fillColor:'#e2f3a2',fillOpacity:1};const stops=current.stops||[];for(const [i,s] of stops.entries()){const terminal=!importedRoute&&(i===0||i===stops.length-1),label=document.createElement('span');label.textContent=(terminal?'Cabecera · ':'')+(i+1)+'. '+s.attributes.Nombre+' (parada '+s.attributes.Nodo+')';stopMarkers.push(createRouteStop([s.geometry.y,s.geometry.x],stopStyle,terminal).bindTooltip(label).addTo(routeLayer));}if(!stops.length){const paths=current.geometry.paths.filter(path=>path.length);if(paths.length){stopMarkers.push(createRouteStop([paths[0][0][1],paths[0][0][0]],stopStyle,true).bindTooltip('Cabecera · Inicio del recorrido').addTo(routeLayer));const last=paths.at(-1).at(-1);stopMarkers.push(createRouteStop([last[1],last[0]],stopStyle,true).bindTooltip('Cabecera · Final del recorrido').addTo(routeLayer));}}
 map.fitBounds(routeLayer.getBounds(),{paddingTopLeft:[24,140],paddingBottomRight:[24,38],animate:false});const favourite=getFavouriteZoom?.();if(!importedRoute&&favourite!=null)setMetricZoomDistance(map,favourite);routeArrowsController?.refresh();}$('stopList').replaceChildren();for(const s of current.stops||[]){const li=document.createElement('li');li.textContent=s.attributes.Nombre+' · parada '+s.attributes.Nodo;$('stopList').append(li);}$('stopCount').textContent=(current.stops||[]).length+' paradas en este recorrido';$('stats').textContent=distance(current).toLocaleString('es',{maximumFractionDigits:1})+' km · '+current.geometry.paths.reduce((n,p)=>n+p.length,0)+' puntos · '+(current.stops||[]).length+' paradas';$('download').disabled=Boolean(importedRoute);routeNavigator.routeChanged();updateStopMarkerSizes();if(!importedRoute)useSavedMapForLine(selected);}
 
@@ -306,6 +319,7 @@ function openCustomRoute(route) {
  if (!map) throw Error('El mapa no está disponible.');
  if (routeNavigator.isActive()) routeNavigator.exit();
  selected = '';
+ refreshMapProvider();
  $('name').textContent = route.attributes.NombreRuta;
  $('badge').hidden = true;
  $('senseBar').hidden = true;
@@ -362,7 +376,7 @@ async function load(refresh=false){
  data=withoutRetiredTestRoutes(data);
  latestOfflineDataset=data;automaticNetwork?.setData(data);
  if(routeNavigator.isActive()&&current){$('dataStatus').dataset.state=state;$('status').textContent='Datos disponibles para la próxima selección. Tu navegación continúa con el recorrido actual.';$('refresh').disabled=false;return;}
- features=validFeatures(data);const index=new Map;for(const f of features){const id=label(f);if(!index.has(id))index.set(id,{id,name:f.attributes.NombreLinea||id,items:[]});index.get(id).items.push(f);}groups=[...index.values()].sort(compareLineGroups);if(!$('statisticsView').hidden)renderLineStatistics();$('dataStatus').dataset.state=state;$('status').textContent=groups.length+' líneas · '+features.length+' recorridos · '+message;if(index.has(selected))choose(selected);else{renderList();routeNavigator.routeChanged();}$('refresh').disabled=false;}
+ features=validFeatures(data);const index=new Map;for(const f of features){const id=label(f);if(!index.has(id))index.set(id,{id,name:f.attributes.NombreLinea||id,items:[]});index.get(id).items.push(f);}groups=[...index.values()].sort(compareLineGroups);if(!$('statisticsView').hidden)renderLineStatistics();$('dataStatus').dataset.state=state;$('status').textContent=groups.length+' líneas · '+features.length+' recorridos · '+message;if(index.has(selected))choose(selected);else{renderList();routeNavigator.routeChanged();refreshMapProvider();}$('refresh').disabled=false;}
 
 function createLineStatistics(storage, onChange) {
  const key = 'copiloter-line-statistics';
@@ -703,7 +717,7 @@ function initMapType(layer,initialType='street'){
 }
 initMapType(background,initialMapType);
 initPersonalMapKeys();
-initMapProvider(map,background);
+if(map)mapProviderController=initMapProvider(map,background);
 routeArrowsController=initRouteArrows(map,()=>current);
 automaticNetwork=createAutomaticNetwork({window,document,navigator,bus:BusOffline,saveRoutes:saveAutomaticRoutes,template:()=>mapTileUrl('street')});if(latestOfflineDataset)automaticNetwork.setData(latestOfflineDataset);
 const recorder = initRouteRecording(() => routeNavigator.start());
@@ -763,6 +777,7 @@ function initBusLinesVisibility() {
   if (toggle.checked || !selected) return;
   selected='';
   current=null;
+  refreshMapProvider();
   nextStop.reset();
   routeLayer?.remove();
   routeLayer=null;
@@ -913,6 +928,8 @@ function initRouteRecording(startGps) {
     if (existing) {
      existing.remove();
      visibleRoutes.delete(route);
+     savedRoutesUseIgn = visibleRoutes.size > 0;
+     refreshMapProvider();
     } else {
      const paths = [];
      for (const point of route.points) {
@@ -930,6 +947,8 @@ function initRouteRecording(startGps) {
      });
      layer.addTo(map);
      visibleRoutes.set(route, layer);
+     savedRoutesUseIgn = true;
+     refreshMapProvider();
      map.fitBounds(layer.getBounds(), {padding: [30, 50], maxZoom: 17, animate: false});
     }
     title.setAttribute('aria-pressed', String(visibleRoutes.has(route)));
@@ -968,6 +987,8 @@ function initRouteRecording(startGps) {
     else {
      visibleRoutes.get(route)?.remove();
      visibleRoutes.delete(route);
+     savedRoutesUseIgn = visibleRoutes.size > 0;
+     refreshMapProvider();
     }
     renderLibrary();
     render();
@@ -983,6 +1004,8 @@ function initRouteRecording(startGps) {
   if (!enabled) return;
   if (recording) {
    recording = false;
+   recordingUsesIgn = false;
+   refreshMapProvider();
    recordingLayer?.clearLayers();
    recordingLayer?.remove();
    recordingSegment = null;
@@ -990,6 +1013,8 @@ function initRouteRecording(startGps) {
    renderLibrary();
   } else {
    recording = true;
+   recordingUsesIgn = true;
+   refreshMapProvider();
    latestFix = null;
    started = Date.now();
    split = true;
