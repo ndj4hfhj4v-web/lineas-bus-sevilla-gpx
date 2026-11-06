@@ -722,8 +722,6 @@ if(map)mapProviderController=initMapProvider(map,background);
 routeArrowsController=initRouteArrows(map,()=>current);
 automaticNetwork=createAutomaticNetwork({window,document,navigator,bus:BusOffline,saveRoutes:saveAutomaticRoutes,template:()=>mapTileUrl('street')});if(latestOfflineDataset)automaticNetwork.setData(latestOfflineDataset);
 const recorder = initRouteRecording(() => routeNavigator.start());
-// Start location independently of selecting or downloading a bus line.
-routeNavigator.start();
 
 // Installation stays in Options; no automatic prompt interrupts the map.
 function initInstallation(win=window,nav=navigator,doc=document){
