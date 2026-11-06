@@ -256,3 +256,6 @@ html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom
 .map-app #openBusSettings{display:grid;place-items:center;min-width:48px;padding:0;border:0;border-left:1px solid #aa7a20;border-radius:0 9px 9px 0;background:transparent;color:#2d210c}
 .map-app #openBusSettings:hover{background:#0001}
 .map-app:not(:has(#showBusLines:checked)) #openOffline{display:none}
+.bus-settings-card{position:relative;min-height:62px;overflow:hidden}
+.bus-settings-toggle{padding-right:64px}
+.bus-settings-shirt{position:absolute;left:73%;top:50%;width:64px;height:auto;transform:translate(-50%,-50%);pointer-events:none}
