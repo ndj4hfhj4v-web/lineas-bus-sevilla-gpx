@@ -653,7 +653,7 @@ function initMenuIcon(env={document,storage:()=>localStorage}) {
  const mascot=env.document.getElementById('menuMascotIcon');
  const gear=env.document.getElementById('menuGearIcon');
  const key='copiloter-menu-icon';
- try { toggle.checked=env.storage().getItem(key)==='gear'; } catch {}
+ try { toggle.checked=env.storage().getItem(key)!=='mascot'; } catch {}
  function apply() {
   mascot.hidden=toggle.checked;
   gear.toggleAttribute('hidden',!toggle.checked);
