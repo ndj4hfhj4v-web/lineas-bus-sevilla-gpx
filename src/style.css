@@ -257,11 +257,12 @@ html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom
 .settings-card{box-sizing:border-box;width:100%;min-height:62px;margin:0 0 10px;border-radius:10px}
 .map-app .settings-display-card{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;font-weight:650}
 .settings-display-card>span{font-size:22px}
-.bus-settings-card{display:flex;align-items:stretch;border:1px solid #aa7a20;background:#fff1c2;color:#2d210c}
-.bus-settings-card:has(#showBusLines:checked){background:#f7a800}
+.bus-settings-card{display:flex;align-items:stretch;border:1px solid #d4ded2;background:#fff;color:#264d3d}
+:root[data-theme="night"] .bus-settings-card:not(:has(#showBusLines:checked)){background:#172b22;color:#dce8e0;border-color:#3b5748}
+.bus-settings-card:has(#showBusLines:checked){background:#f7a800;color:#2d210c;border-color:#aa7a20}
 .bus-settings-toggle{position:relative;display:flex;align-items:center;flex:1;min-height:48px;padding:8px 12px;font-weight:650;cursor:pointer}
 .bus-settings-toggle:has(input:focus-visible){outline:2px solid currentColor;outline-offset:-3px;border-radius:9px}
-.map-app #openBusSettings{display:grid;place-items:center;min-width:48px;padding:0;border:0;border-left:1px solid #aa7a20;border-radius:0 9px 9px 0;background:transparent;color:#2d210c}
+.map-app #openBusSettings{display:grid;place-items:center;min-width:48px;padding:0;border:0;border-left:1px solid color-mix(in srgb,currentColor 30%,transparent);border-radius:0 9px 9px 0;background:transparent;color:inherit}
 .map-app #openBusSettings:hover{background:#0001}
 .map-app:not(:has(#showBusLines:checked)) #openOffline{display:none}
 .bus-settings-card{position:relative;overflow:hidden}
