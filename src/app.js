@@ -650,15 +650,17 @@ initZoomMetresVisibility();
 
 function initMenuIcon(env={document,storage:()=>localStorage}) {
  const toggle=env.document.getElementById('useMenuGear');
+ const mascotChoice=env.document.getElementById('useMenuMascot');
  const mascot=env.document.getElementById('menuMascotIcon');
  const gear=env.document.getElementById('menuGearIcon');
  const key='copiloter-menu-icon';
  try { toggle.checked=env.storage().getItem(key)!=='mascot'; } catch {}
+ mascotChoice.checked=!toggle.checked;
  function apply() {
   mascot.hidden=toggle.checked;
   gear.toggleAttribute('hidden',!toggle.checked);
  }
- toggle.onchange=()=>{
+ toggle.onchange=mascotChoice.onchange=()=>{
   apply();
   try { env.storage().setItem(key,toggle.checked?'gear':'mascot'); } catch {}
  };
