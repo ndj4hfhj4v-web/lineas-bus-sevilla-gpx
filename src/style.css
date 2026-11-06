@@ -167,7 +167,12 @@ html[data-zoom-metres="hidden"] .leaflet-control-scale{display:none!important}
 .map-app .saved-recording-actions button{display:grid;place-items:center;min-width:44px;min-height:44px;padding:6px}
 
 .statistics-list{list-style:none;margin:0;padding:0;display:grid;gap:14px}
-.statistics-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;align-items:baseline}
+.statistics-list summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:5px 10px;align-items:center;cursor:pointer;min-height:44px}
+.statistics-list summary::-webkit-details-marker{display:none}
+.statistics-list summary>span:nth-child(2){overflow-wrap:anywhere}
+.statistics-line-badge{min-width:30px;padding:3px 5px;border-radius:5px;text-align:center;font-weight:650}
+.statistics-directions{list-style:none;padding:8px 0 0 12px;margin:0;display:grid;gap:6px}
+.statistics-directions li{display:flex;justify-content:space-between;gap:10px;font-size:13px}
 .statistics-list strong{font-variant-numeric:tabular-nums}
 .statistics-bar{grid-column:1/-1;height:8px;border-radius:8px;background:currentColor;background:color-mix(in srgb,currentColor 16%,transparent);overflow:hidden}
 .statistics-bar span{display:block;height:100%;border-radius:inherit;background:#388263}
@@ -264,6 +269,3 @@ html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom
 .gps-statistics div{padding:8px;border:1px solid #78948777;border-radius:8px}
 .gps-statistics dt{font-size:12px}
 .gps-statistics dd{margin:4px 0 0;font-weight:650;font-variant-numeric:tabular-nums}
-.statistics-chart{position:relative;display:grid;place-items:center;width:136px;height:136px;margin:4px auto 16px}
-.statistics-chart::before{content:"";position:absolute;inset:0;border-radius:50%;background:var(--statistics-slices);mask-image:radial-gradient(circle,transparent 47%,#000 48%)}
-.statistics-chart strong{font-size:24px;font-variant-numeric:tabular-nums}

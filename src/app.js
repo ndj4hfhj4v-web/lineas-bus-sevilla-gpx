@@ -362,7 +362,7 @@ async function load(refresh=false){
  data=withoutRetiredTestRoutes(data);
  latestOfflineDataset=data;automaticNetwork?.setData(data);
  if(routeNavigator.isActive()&&current){$('dataStatus').dataset.state=state;$('status').textContent='Datos disponibles para la próxima selección. Tu navegación continúa con el recorrido actual.';$('refresh').disabled=false;return;}
- features=validFeatures(data);const index=new Map;for(const f of features){const id=label(f);if(!index.has(id))index.set(id,{id,name:f.attributes.NombreLinea||id,items:[]});index.get(id).items.push(f);}groups=[...index.values()].sort(compareLineGroups);$('dataStatus').dataset.state=state;$('status').textContent=groups.length+' líneas · '+features.length+' recorridos · '+message;if(index.has(selected))choose(selected);else{renderList();routeNavigator.routeChanged();}$('refresh').disabled=false;}
+ features=validFeatures(data);const index=new Map;for(const f of features){const id=label(f);if(!index.has(id))index.set(id,{id,name:f.attributes.NombreLinea||id,items:[]});index.get(id).items.push(f);}groups=[...index.values()].sort(compareLineGroups);if(!$('statisticsView').hidden)renderLineStatistics();$('dataStatus').dataset.state=state;$('status').textContent=groups.length+' líneas · '+features.length+' recorridos · '+message;if(index.has(selected))choose(selected);else{renderList();routeNavigator.routeChanged();}$('refresh').disabled=false;}
 
 function createLineStatistics(storage, onChange) {
  const key = 'copiloter-line-statistics';
@@ -479,53 +479,67 @@ function renderGpsStatistics() {
  $('statAltitudeRange').textContent = maxAltitude === null || minAltitude === null ? '—' : (maxAltitude - minAltitude) + ' m';
 }
 
-function statisticsLineColor(id) {
- return lineColors(groups.find(group => group.id === id)?.items[0]?.attributes.Color).background;
-}
-
 function renderLineStatistics() {
  renderGpsStatistics();
  const list = $('statisticsList');
- const entries = lineStatistics.entries();
- list.replaceChildren();
- $('statisticsEmpty').hidden = entries.length > 0;
- const chart = $('statisticsChart');
- const counts = new Map();
- for (const [id, entry] of entries) {
+ const expanded = new Set(Array.from(list.querySelectorAll('details[open]'), item => item.dataset.line));
+ const rows = new Map(groups.map(group => {
+  const senses = new Map(selectableRoutes(group).map(({attributes: f}) =>
+   [f.NombreRuta || f.DestinoRuta || 'Sentido ' + f.Ruta, 0]));
+  return [group.id, {id: group.id, name: group.name, color: group.items[0].attributes.Color, total: 0, senses}];
+ }));
+ let total = 0;
+ for (const [id, entry] of lineStatistics.entries()) {
   const line = entry.line || id;
-  counts.set(line, (counts.get(line) || 0) + entry.count);
+  if (!rows.has(line)) rows.set(line, {id: line, name: entry.name, total: 0, senses: new Map()});
+  const row = rows.get(line);
+  const sense = entry.sense || 'Sentido sin registrar';
+  row.senses.set(sense, (row.senses.get(sense) || 0) + entry.count);
+  row.total += entry.count;
+  total += entry.count;
  }
- const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
- chart.hidden = false;
- if (!total) chart.style.setProperty('--statistics-slices', 'color-mix(in srgb, currentColor 22%, transparent)');
+ const sorted = [...rows.values()].sort((a,b) => b.total - a.total || compareLineGroups(a,b));
+ const max = sorted[0]?.total || 1;
  $('statisticsTotal').textContent = String(total);
- if (total) {
-  let offset = 0;
-  const slices = [];
-  for (const [line, count] of counts) {
-   const end = offset + count;
-   slices.push(statisticsLineColor(line) + ' ' + (offset / total * 100) + '% ' + (end / total * 100) + '%');
-   offset = end;
-  }
-  chart.style.setProperty('--statistics-slices', 'conic-gradient(' + slices.join(',') + ')');
- }
- const max = entries[0]?.[1].count || 1;
- for (const [id, entry] of entries) {
-  const row = document.createElement('li');
-  const name = document.createElement('span');
-  name.textContent = 'Línea ' + (entry.line || id) + ' · ' + (entry.sense || entry.name + ' (sentido sin registrar)');
+ $('statisticsEmpty').hidden = total > 0;
+ list.replaceChildren();
+ for (const {id, name, color, total, senses} of sorted) {
+  const item = document.createElement('li');
+  const details = document.createElement('details');
+  details.dataset.line = id;
+  details.open = expanded.has(id);
+  const summary = document.createElement('summary');
+  const badge = document.createElement('span');
+  badge.className = 'statistics-line-badge';
+  badge.textContent = id;
+  applyLineColors(badge, color);
+  const title = document.createElement('span');
+  title.textContent = name;
   const count = document.createElement('strong');
-  count.textContent = String(entry.count);
-  count.setAttribute('aria-label', entry.count + (entry.count === 1 ? ' semivuelta' : ' semivueltas'));
-  const bar = document.createElement('div');
+  count.textContent = String(total);
+  count.setAttribute('aria-label', total + (total === 1 ? ' semivuelta' : ' semivueltas'));
+  const bar = document.createElement('span');
   bar.className = 'statistics-bar';
   bar.setAttribute('aria-hidden', 'true');
   const fill = document.createElement('span');
-  fill.style.width = (100 * entry.count / max) + '%';
-  fill.style.backgroundColor = statisticsLineColor(entry.line || id);
+  fill.style.width = (100 * total / max) + '%';
+  fill.style.backgroundColor = lineColors(color).background;
   bar.append(fill);
-  row.append(name, count, bar);
-  list.append(row);
+  summary.append(badge, title, count, bar);
+  const breakdown = document.createElement('ul');
+  breakdown.className = 'statistics-directions';
+  for (const [sense, amount] of senses) {
+   const direction = document.createElement('li');
+   const label = document.createElement('span');
+   label.textContent = sense;
+   const number = document.createElement('strong');
+   number.textContent = String(amount);
+   direction.append(label, number);
+   breakdown.append(direction);
+  }
+  details.append(summary, breakdown);
+  item.append(details);
+  list.append(item);
  }
 }
 const lineStatistics=createLineStatistics(()=>localStorage,renderLineStatistics);
