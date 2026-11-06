@@ -435,11 +435,79 @@ function createLineStatistics(storage, onChange) {
  };
 }
 
+function createGpsStatistics(storage) {
+ const key = 'copiloter-gps-statistics';
+ const values = {maxSpeed: null, maxAltitude: null, minAltitude: null};
+ try {
+  const saved = JSON.parse(storage().getItem(key));
+  for (const name of Object.keys(values)) {
+   if (Number.isFinite(saved?.[name])) values[name] = saved[name];
+  }
+ } catch {}
+ return {
+  values,
+  addPosition(fix) {
+   if (!Number.isFinite(fix.accuracy) || fix.accuracy > 50) return false;
+   let changed = false;
+   function update(name, value, compare) {
+    if (values[name] !== null && !compare(value, values[name])) return;
+    values[name] = value;
+    changed = true;
+   }
+   if (Number.isFinite(fix.speed) && fix.speed >= 0) {
+    update('maxSpeed', Math.round(fix.speed * 3.6), (a, b) => a > b);
+   }
+   if (Number.isFinite(fix.altitude)) {
+    const altitude = Math.round(fix.altitude);
+    update('maxAltitude', altitude, (a, b) => a > b);
+    update('minAltitude', altitude, (a, b) => a < b);
+   }
+   if (changed) {
+    try { storage().setItem(key, JSON.stringify(values)); } catch {}
+   }
+   return changed;
+  }
+ };
+}
+const gpsStatistics = createGpsStatistics(() => localStorage);
+
+function renderGpsStatistics() {
+ const {maxSpeed, maxAltitude, minAltitude} = gpsStatistics.values;
+ $('statMaxSpeed').textContent = maxSpeed === null ? '—' : maxSpeed + ' km/h';
+ $('statMaxAltitude').textContent = maxAltitude === null ? '—' : maxAltitude + ' m';
+ $('statMinAltitude').textContent = minAltitude === null ? '—' : minAltitude + ' m';
+ $('statAltitudeRange').textContent = maxAltitude === null || minAltitude === null ? '—' : (maxAltitude - minAltitude) + ' m';
+}
+
+function statisticsLineColor(id) {
+ return lineColors(groups.find(group => group.id === id)?.items[0]?.attributes.Color).background;
+}
+
 function renderLineStatistics() {
+ renderGpsStatistics();
  const list = $('statisticsList');
  const entries = lineStatistics.entries();
  list.replaceChildren();
  $('statisticsEmpty').hidden = entries.length > 0;
+ const chart = $('statisticsChart');
+ const counts = new Map();
+ for (const [id, entry] of entries) {
+  const line = entry.line || id;
+  counts.set(line, (counts.get(line) || 0) + entry.count);
+ }
+ const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
+ chart.hidden = !total;
+ $('statisticsTotal').textContent = String(total);
+ if (total) {
+  let offset = 0;
+  const slices = [];
+  for (const [line, count] of counts) {
+   const end = offset + count;
+   slices.push(statisticsLineColor(line) + ' ' + (offset / total * 100) + '% ' + (end / total * 100) + '%');
+   offset = end;
+  }
+  chart.style.setProperty('--statistics-slices', 'conic-gradient(' + slices.join(',') + ')');
+ }
  const max = entries[0]?.[1].count || 1;
  for (const [id, entry] of entries) {
   const row = document.createElement('li');
@@ -453,6 +521,7 @@ function renderLineStatistics() {
   bar.setAttribute('aria-hidden', 'true');
   const fill = document.createElement('span');
   fill.style.width = (100 * entry.count / max) + '%';
+  fill.style.backgroundColor = statisticsLineColor(entry.line || id);
   bar.append(fill);
   row.append(name, count, bar);
   list.append(row);
@@ -533,7 +602,7 @@ function initGpsInformationVisibility() {
 }
 
 const nextStop = initNextStop();
-const routeNavigator=createRouteNavigator(map,()=>current,active=>{updateStopMarkerSizes();if(!active){nextStop.reset();latestGpsFix=null;renderGpsInformation();}},fix=>{latestGpsFix=fix;renderGpsInformation();nextStop.update(selected ? current : null,fix);recorder.addPosition(fix);if(!document.hidden)lineStatistics.addPosition(selected ? current : null,fix);},()=>current!=null&&getFavouriteZoom?.()!=null);
+const routeNavigator=createRouteNavigator(map,()=>current,active=>{updateStopMarkerSizes();if(!active){nextStop.reset();latestGpsFix=null;renderGpsInformation();}},fix=>{latestGpsFix=fix;renderGpsInformation();nextStop.update(selected ? current : null,fix);recorder.addPosition(fix);if(!document.hidden){if(gpsStatistics.addPosition(fix)&&!$('statisticsView').hidden)renderGpsStatistics();lineStatistics.addPosition(selected ? current : null,fix);}},()=>current!=null&&getFavouriteZoom?.()!=null);
 $('search').oninput=renderList;$('variant').onchange=()=>{if(routeNavigator.isActive())routeNavigator.exit();show();routeNavigator.start();};$('refresh').onclick=()=>load(true);$('download').onclick=downloadLineGpx;startOfflineApp();
 
 function offlineNetworkFingerprint(data){let hash=2166136261;const value=JSON.stringify(data.features);for(let i=0;i<value.length;i++){hash^=value.charCodeAt(i);hash=Math.imul(hash,16777619);}return (hash>>>0).toString(16)+':'+value.length;}

@@ -259,3 +259,11 @@ html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom
 .bus-settings-card{position:relative;min-height:62px;overflow:hidden}
 .bus-settings-toggle{padding-left:calc(2% + 83px)}
 .bus-settings-shirt{position:absolute;left:2%;top:51%;width:150px;max-width:none;height:auto;transform:translate(-50%,-50%);pointer-events:none}
+#statisticsView h2{font-size:16px;margin:0 0 10px}
+.gps-statistics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 18px}
+.gps-statistics div{padding:8px;border:1px solid #78948777;border-radius:8px}
+.gps-statistics dt{font-size:12px}
+.gps-statistics dd{margin:4px 0 0;font-weight:650;font-variant-numeric:tabular-nums}
+.statistics-chart{position:relative;display:grid;place-items:center;width:136px;height:136px;margin:4px auto 16px}
+.statistics-chart::before{content:"";position:absolute;inset:0;border-radius:50%;background:var(--statistics-slices);mask-image:radial-gradient(circle,transparent 47%,#000 48%)}
+.statistics-chart strong{font-size:24px;font-variant-numeric:tabular-nums}
