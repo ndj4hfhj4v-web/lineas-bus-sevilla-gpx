@@ -257,5 +257,5 @@ html[data-map-provider="google"] #map .leaflet-control-attribution{margin-bottom
 .map-app #openBusSettings:hover{background:#0001}
 .map-app:not(:has(#showBusLines:checked)) #openOffline{display:none}
 .bus-settings-card{position:relative;min-height:62px;overflow:hidden}
-.bus-settings-toggle{padding-right:64px}
-.bus-settings-shirt{position:absolute;left:73%;top:50%;width:64px;height:auto;transform:translate(-50%,-50%);pointer-events:none}
+.bus-settings-toggle{padding-left:calc(2% + 83px)}
+.bus-settings-shirt{position:absolute;left:2%;top:51%;width:150px;max-width:none;height:auto;transform:translate(-50%,-50%);pointer-events:none}
