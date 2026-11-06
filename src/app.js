@@ -81,9 +81,11 @@ function refreshMapProvider() {
  mapProviderController?.refresh();
 }
 
-function initMapProvider(map,ign,env={window,document,navigator,storage:()=>localStorage,loadSdk:()=>loadMapboxSdk(),canUsePremium:()=>Boolean(selected)&&groups.some(group=>group.id===selected)&&!recordingUsesIgn&&!savedRoutesUseIgn}){
+function initMapProvider(map,ign,env={window,document,navigator,storage:()=>localStorage,loadSdk:()=>loadMapboxSdk(),publicMapboxToken:'__COPILOTER_PUBLIC_MAPBOX__',canUsePremium:()=>Boolean(selected)&&groups.some(group=>group.id===selected)&&!recordingUsesIgn&&!savedRoutesUseIgn}){
  const keys = readPersonalMapKeys(env.storage);
- const accessToken=env.accessToken??keys.mapbox??'',win=env.window,doc=env.document,root=doc.documentElement,select=doc.getElementById('mapProvider'),status=doc.getElementById('mapProviderStatus'),key='bus-copilot-map-provider';let preferred='ign',renderer=null,host=null,pending=null,ready=false,disposed=false,generation=0,frame=null,styleKey='',credited=false,loadTimer=null,failed=false,aerialFailed=false;
+ const personalMapbox = typeof keys.mapbox === 'string' && keys.mapbox.startsWith('pk.');
+ const publicMapbox = env.publicMapboxToken?.startsWith('pk.') ? env.publicMapboxToken : '';
+ const accessToken=env.accessToken??(personalMapbox?keys.mapbox:publicMapbox),win=env.window,doc=env.document,root=doc.documentElement,select=doc.getElementById('mapProvider'),status=doc.getElementById('mapProviderStatus'),key='bus-copilot-map-provider';let preferred=publicMapbox?'mapbox':'ign',renderer=null,host=null,pending=null,ready=false,disposed=false,generation=0,frame=null,styleKey='',credited=false,loadTimer=null,failed=false,aerialFailed=false;
  const aerialFallback='No se han podido cargar las imágenes de Mapbox. Se muestra la vista aérea del IGN.';
  const attribution='<a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> · <a href="https://apps.mapbox.com/feedback/" target="_blank" rel="noopener">Mejorar mapa</a>';
  try{const saved=env.storage().getItem(key);if(['ign','mapbox','google'].includes(saved))preferred=saved;}catch{}
@@ -95,7 +97,7 @@ function initMapProvider(map,ign,env={window,document,navigator,storage:()=>loca
  }
  if (!available[preferred]) preferred = 'ign';
  let googleMap, googleHost, googlePending, googleReady = false, googleFailed = false, googleTimer;
- const personal = {mapbox:typeof keys.mapbox === 'string' && keys.mapbox.startsWith('pk.'),google:typeof keys.google === 'string' && !!keys.google};
+ const personal = {mapbox:personalMapbox,google:typeof keys.google === 'string' && !!keys.google};
  const canUsePremium = provider => personal[provider] || (env.canUsePremium?.() ?? true);
  const wantsGoogle = () => canUsePremium('google') && preferred === 'google' && env.navigator.onLine !== false;
  function syncGoogle() {

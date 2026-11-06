@@ -5,6 +5,11 @@ const data=JSON.parse(fs.readFileSync(path.join(root,'snapshot.json'),'utf8'));r
 for(const name of ['leaflet.css','style.css'])html=html.replace('<link rel="stylesheet" href="'+name+'">',()=>'<style>'+fs.readFileSync(path.join(root,name),'utf8')+'</style>');
 for(const name of ['leaflet.js','leaflet-rotate.js','core.js','offline.js','navigation.js','app.js']){
  let js=fs.readFileSync(path.join(root,name),'utf8');
+ if(name==='app.js'){
+  const publicMapbox=process.env.COPILOTER_MAPBOX_PUBLIC_TOKEN?.trim()||'';
+  if(publicMapbox&&!/^pk\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(publicMapbox))throw Error('COPILOTER_MAPBOX_PUBLIC_TOKEN debe ser un token público pk.');
+  js=js.replace("'__COPILOTER_PUBLIC_MAPBOX__'",()=>JSON.stringify(publicMapbox));
+ }
  if(name==='app.js')js=js.replaceAll("const r=await fetch('snapshot.json');if(!r.ok)throw Error();data=await r.json();",'data=JSON.parse(document.getElementById("embedded-data").textContent);');
  html=html.replace('<script src="'+name+'"></script>',()=>'<script>'+js.replace(/<\/script/gi,'<\\/script')+'</script>');
 }

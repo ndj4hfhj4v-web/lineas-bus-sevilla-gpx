@@ -25,6 +25,8 @@ jobs:
           node-version: '22'
       - uses: actions/configure-pages@v5
       - name: Generar web
+        env:
+          COPILOTER_MAPBOX_PUBLIC_TOKEN: ${{ vars.COPILOTER_MAPBOX_PUBLIC_TOKEN }}
         run: node scripts/build.cjs
       - name: Validar la web
         run: node scripts/validate.cjs
