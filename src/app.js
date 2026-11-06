@@ -668,6 +668,37 @@ function initMenuIcon(env={document,storage:()=>localStorage}) {
 }
 initMenuIcon();
 
+function initBusLinesVisibility() {
+ const toggle=$('showBusLines');
+ const key='copiloter-show-bus-lines';
+ try { toggle.checked=localStorage.getItem(key)==='true'; } catch {}
+ $('selectLine').hidden=!toggle.checked;
+ toggle.onchange=()=>{
+  $('selectLine').hidden=!toggle.checked;
+  try { localStorage.setItem(key,String(toggle.checked)); } catch {}
+  if (toggle.checked || !selected) return;
+  selected='';
+  current=null;
+  routeLayer?.remove();
+  routeLayer=null;
+  stopMarkers=[];
+  stopMarkerRadius=null;
+  routeArrowsController?.refresh();
+  $('name').textContent='Seleccionar línea';
+  $('badge').hidden=true;
+  $('senseBar').hidden=true;
+  $('variant').disabled=true;
+  $('stopList').replaceChildren();
+  $('stopCount').textContent='0 paradas en este recorrido';
+  $('stats').textContent='';
+  $('download').disabled=true;
+  clearGpxDownloads();
+  renderList();
+  routeNavigator.routeChanged();
+ };
+}
+initBusLinesVisibility();
+
 function initRouteRecording(startGps) {
  const key = 'copiloter-recorded-track';
  let storedValue;
