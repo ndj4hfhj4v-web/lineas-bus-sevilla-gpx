@@ -715,6 +715,8 @@ function initRouteRecording(startGps) {
  let nextNumber = 1;
  const waypointButton = $('recordingWaypoint');
  const waypointLayer = map ? L.layerGroup() : null;
+ const recordingLayer = map ? L.layerGroup() : null;
+ let recordingSegment = null;
  let waypoints = [];
  let latestFix = null;
  const settingKey = 'copiloter-show-recording';
@@ -750,6 +752,13 @@ function initRouteRecording(startGps) {
   routes.push({name: 'Ruta de ejemplo (ficticia)', example: true, points: examplePoints,
    waypoints: [examplePoints[2], examplePoints[6]]});
   exampleAdded = true;
+ }
+ function drawRecordingPoint(point) {
+  if (!recordingLayer) return;
+  if (!recordingSegment || point.split) {
+   recordingSegment = L.polyline([], {color: '#d22129', weight: 5, opacity: .95, interactive: false}).addTo(recordingLayer);
+  }
+  recordingSegment.addLatLng([point.lat, point.lon]);
  }
  function drawWaypoints() {
   if (!waypointLayer) return;
@@ -890,6 +899,9 @@ function initRouteRecording(startGps) {
   if (!enabled) return;
   if (recording) {
    recording = false;
+   recordingLayer?.clearLayers();
+   recordingLayer?.remove();
+   recordingSegment = null;
    archive();
    renderLibrary();
   } else {
@@ -897,6 +909,10 @@ function initRouteRecording(startGps) {
    latestFix = null;
    started = Date.now();
    split = true;
+   if (recordingLayer) {
+    recordingLayer.addTo(map);
+    points.forEach(drawRecordingPoint);
+   }
    startGps();
   }
   render();
@@ -964,7 +980,9 @@ function initRouteRecording(startGps) {
    if (previous && fix.time <= previous.time) return;
    const newSegment = split || (previous && fix.time - previous.time > 30000);
    if (previous && !newSegment && (fix.time - previous.time < 3000 || gpsDistance([previous.lon, previous.lat], [fix.lon, fix.lat]) < 5)) return;
-   points.push({lat: fix.lat, lon: fix.lon, time: fix.time, split: Boolean(newSegment)});
+   const point = {lat: fix.lat, lon: fix.lon, time: fix.time, split: Boolean(newSegment)};
+   points.push(point);
+   drawRecordingPoint(point);
    split = false;
    save();
    render();
