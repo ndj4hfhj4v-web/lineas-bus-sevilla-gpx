@@ -212,7 +212,7 @@ function createRouteNavigator(map,getRoute,onStateChange=()=>{},onPosition=()=>{
    timer=setInterval(()=>{if(!active)return;recoverGps();if(last&&Date.now()-last.time>30000){status('Sin una posición reciente. La última ubicación puede estar desactualizada.','warning');if(marker)marker.setOpacity(.4);}if((!last||Date.now()-last.time>30000)&&Date.now()-approximateAttempt>20000)requestApproximate(token);},5000);keepAwake();
   }catch{stop('No se ha podido iniciar el GPS. Abre la web en el navegador del móvil y revisa el permiso de ubicación.','warning');}
  }
- if(el('startGps'))el('startGps').onclick=start;el('centerGps').onclick=()=>{if(!last){stop('');start();return;}camera.cancel();try{if(map.stop)map.stop();zooming=false;following=true;viewPosition=null;followPosition();if(Date.now()-last.time<30000&&last.accuracy<=80)status('');}catch{following=false;status('No se ha podido volver a tu ubicación. Pulsa de nuevo el botón.','warning');}controls();};
+ if(el('startGps'))el('startGps').onclick=start;el('centerGps').onclick=()=>{if(!last){if(active)stop('');start();return;}camera.cancel();try{if(map.stop)map.stop();zooming=false;following=true;viewPosition=null;followPosition();if(Date.now()-last.time<30000&&last.accuracy<=80)status('');}catch{following=false;status('No se ha podido volver a tu ubicación. Pulsa de nuevo el botón.','warning');}controls();};
  if(map)map.on('rotate',orientArrow);
  if(map)map.on('resize',()=>{if(active&&following)followPosition();});
  if(map)map.on('zoomstart',()=>{zooming=true;camera.cancel();});
