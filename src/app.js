@@ -948,12 +948,12 @@ function initRouteRecording(startGps) {
     renderLibrary();
     render();
    };
-   const exportButton = document.createElement('button');
-   exportButton.type = 'button';
-   exportButton.title = 'Descargar GPX';
-   exportButton.setAttribute('aria-label', 'Descargar GPX');
-   exportButton.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg>';
-   exportButton.onclick = () => exportRoute(route);
+   const shareButton = document.createElement('button');
+   shareButton.type = 'button';
+   shareButton.title = 'Compartir GPX';
+   shareButton.setAttribute('aria-label', 'Compartir GPX de ' + route.name);
+   shareButton.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M8 11H5v10h14V11h-3"/></svg>';
+   shareButton.onclick = () => shareRoute(route);
    const deleteButton = document.createElement('button');
    deleteButton.type = 'button';
    deleteButton.title = 'Borrar';
@@ -974,7 +974,7 @@ function initRouteRecording(startGps) {
    };
    const actions = document.createElement('div');
    actions.className = 'saved-recording-actions';
-   actions.append(rename, exportButton, deleteButton);
+   actions.append(rename, shareButton, deleteButton);
    row.append(title, actions);
    list.append(row);
   }
@@ -1037,7 +1037,7 @@ function initRouteRecording(startGps) {
  downloadButton.onclick = () => {
   if (!recording && points.length) exportRoute({name: 'Borrador Copiloter', points, waypoints});
  };
- function exportRoute({name, points, waypoints}) {
+ function createRouteFile({name, points, waypoints}) {
   let track = '<trkseg>';
   for (const [index, point] of points.entries()) {
    if (index && point.split) track += '</trkseg><trkseg>';
@@ -1045,10 +1045,29 @@ function initRouteRecording(startGps) {
   }
   const marks = waypoints.map((point, index) => '<wpt lat="' + point.lat + '" lon="' + point.lon + '"><time>' + new Date(point.time).toISOString() + '</time><name>Punto ' + (index + 1) + '</name></wpt>').join('');
   const xml = '<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="Copiloter" xmlns="http://www.topografix.com/GPX/1/1">' + marks + '<trk><name>' + esc(name) + '</name>' + track + '</trkseg></trk></gpx>';
-  const url = URL.createObjectURL(new Blob([xml], {type: 'application/gpx+xml;charset=utf-8'}));
+  return new File([xml], safeFilename(name) + '.gpx', {type: 'application/gpx+xml'});
+ }
+ function exportRoute(route) {
+  downloadRouteFile(createRouteFile(route));
+ }
+ async function shareRoute(route) {
+  const file = createRouteFile(route);
+  const data = {files: [file]};
+  try {
+   if (navigator.share && navigator.canShare?.(data)) {
+    await navigator.share(data);
+    return;
+   }
+  } catch (error) {
+   if (error.name === 'AbortError' || error.name === 'InvalidStateError') return;
+  }
+  downloadRouteFile(file);
+ }
+ function downloadRouteFile(file) {
+  const url = URL.createObjectURL(file);
   const link = document.createElement('a');
   link.href = url;
-  link.download = safeFilename(name) + '.gpx';
+  link.download = file.name;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 30000);
  }
