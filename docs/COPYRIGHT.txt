@@ -1,0 +1,20 @@
+Copiloter — componentes originales
+Copyright © 2026. Todos los derechos reservados a sus respectivos titulares.
+
+Este aviso se aplica exclusivamente al código, diseño y demás componentes
+originales de Copiloter sobre los que sus titulares ostenten derechos.
+Se permite utilizar la aplicación distribuida para su finalidad prevista.
+Salvo autorización escrita del titular, no se autoriza reproducir, modificar,
+redistribuir, sublicenciar ni explotar comercialmente dichos componentes,
+excepto en los supuestos y con el alcance permitidos por la legislación aplicable.
+La disponibilidad de archivos en Internet no concede una licencia adicional.
+
+Este aviso NO restringe las bibliotecas ni otros componentes de terceros.
+Leaflet, leaflet-rotate y los demás componentes de terceros conservan sus
+propias licencias y derechos, incluidos los permisos MIT/BSD correspondientes.
+Las licencias y atribuciones se reproducen en THIRD_PARTY_NOTICES.txt y
+leaflet-rotate.LICENSE.txt. Los datos, mapas, marcas y logotipos de terceros
+pertenecen a sus respectivos titulares y se rigen por sus propias condiciones.
+
+Este aviso no acredita por sí solo la titularidad ni equivale al registro del
+software o de la marca. Los derechos legalmente aplicables quedan a salvo.
